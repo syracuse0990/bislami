@@ -1,0 +1,11 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#F4FBFB"/>
+  <path d="M349 362C393 315 483 286 600 286C717 286 807 315 851 362V482C851 620 742 704 600 704C458 704 349 620 349 482V362Z" fill="#114B5F" opacity="0.18"/>
+  <path d="M375 356C420 322 503 304 600 304C697 304 780 322 825 356V464C825 587 728 666 600 666C472 666 375 587 375 464V356Z" fill="#FFF8F1" stroke="#114B5F" stroke-width="18"/>
+  <circle cx="523" cy="422" r="82" fill="#D57F3E"/>
+  <circle cx="650" cy="408" r="76" fill="#F6D48B"/>
+  <circle cx="730" cy="502" r="70" fill="#C95334"/>
+  <circle cx="508" cy="531" r="60" fill="#5EAF6B"/>
+  <circle cx="634" cy="550" r="52" fill="#F2E4C5"/>
+  <text x="600" y="780" text-anchor="middle" fill="#114B5F" font-size="54" font-family="Georgia, serif">Loaded Rice Bowl</text>
+</svg>

@@ -1,0 +1,11 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#FFF6ED"/>
+  <rect x="255" y="318" width="690" height="236" rx="118" fill="#F0C784"/>
+  <path d="M352 336C435 279 555 252 677 268C766 279 844 323 893 386C836 454 750 500 649 506C510 514 403 464 352 336Z" fill="#C56B30"/>
+  <path d="M295 372C396 286 554 245 695 276C812 301 904 383 933 480C862 563 730 623 584 620C449 616 332 531 295 372Z" fill="#F5E1B7"/>
+  <path d="M408 438C507 394 634 394 735 439" stroke="#5EAF6B" stroke-width="20" stroke-linecap="round"/>
+  <path d="M402 486C508 448 625 448 739 490" stroke="#A4512A" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="850" cy="534" r="74" fill="#E49B3B"/>
+  <circle cx="902" cy="458" r="40" fill="#E49B3B"/>
+  <text x="600" y="760" text-anchor="middle" fill="#114B5F" font-size="54" font-family="Georgia, serif">Street Wrap Combo</text>
+</svg>

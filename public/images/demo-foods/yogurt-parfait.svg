@@ -1,0 +1,13 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#FFF7FB"/>
+  <path d="M468 246H732L678 652C673 705 630 744 576 744H624C570 744 527 705 522 652L468 246Z" fill="#FFFDF8" stroke="#D97AA6" stroke-width="16"/>
+  <rect x="492" y="286" width="216" height="96" rx="38" fill="#F6D2E2"/>
+  <rect x="492" y="388" width="216" height="96" rx="38" fill="#FFF5E5"/>
+  <rect x="492" y="490" width="216" height="96" rx="38" fill="#F8E7B6"/>
+  <circle cx="544" cy="334" r="26" fill="#D9487D"/>
+  <circle cx="660" cy="336" r="24" fill="#C95334"/>
+  <circle cx="570" cy="438" r="20" fill="#F3E9D7"/>
+  <circle cx="637" cy="438" r="20" fill="#F3E9D7"/>
+  <circle cx="602" cy="540" r="22" fill="#E4B55F"/>
+  <text x="600" y="798" text-anchor="middle" fill="#114B5F" font-size="54" font-family="Georgia, serif">Yogurt Parfait</text>
+</svg>

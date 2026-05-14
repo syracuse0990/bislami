@@ -1,0 +1,11 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#F8FFF9"/>
+  <path d="M338 384C338 294 456 222 600 222C744 222 862 294 862 384V516C862 645 749 738 600 738C451 738 338 645 338 516V384Z" fill="#114B5F" opacity="0.14"/>
+  <path d="M362 380C362 306 468 248 600 248C732 248 838 306 838 380V504C838 618 738 700 600 700C462 700 362 618 362 504V380Z" fill="#FFFDF8" stroke="#114B5F" stroke-width="18"/>
+  <rect x="440" y="320" width="120" height="210" rx="60" fill="#F1CA69"/>
+  <rect x="562" y="320" width="120" height="210" rx="60" fill="#C46A38"/>
+  <rect x="684" y="320" width="84" height="210" rx="42" fill="#5EAF6B"/>
+  <circle cx="498" cy="582" r="52" fill="#F2E4C5"/>
+  <circle cx="640" cy="586" r="48" fill="#D57F3E"/>
+  <text x="600" y="790" text-anchor="middle" fill="#114B5F" font-size="54" font-family="Georgia, serif">Chicken Protein Bowl</text>
+</svg>

@@ -1,0 +1,12 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#F8F3E7"/>
+  <circle cx="600" cy="450" r="282" fill="#114B5F" opacity="0.14"/>
+  <circle cx="600" cy="450" r="250" fill="#FFF7EF" stroke="#114B5F" stroke-width="18"/>
+  <circle cx="600" cy="450" r="208" fill="#E8B561"/>
+  <path d="M420 392C468 318 560 288 646 304C746 323 804 394 814 484C749 566 654 610 550 594C465 581 402 511 420 392Z" fill="#A4512A"/>
+  <path d="M448 510C532 454 654 446 746 491C710 558 617 610 520 596C488 592 458 560 448 510Z" fill="#D57F3E"/>
+  <circle cx="517" cy="375" r="22" fill="#F7D98F"/>
+  <circle cx="702" cy="372" r="18" fill="#F7D98F"/>
+  <circle cx="634" cy="571" r="20" fill="#F7D98F"/>
+  <text x="600" y="768" text-anchor="middle" fill="#114B5F" font-size="54" font-family="Georgia, serif">Smoky Beef Khichuri</text>
+</svg>
