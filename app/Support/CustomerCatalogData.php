@@ -199,7 +199,16 @@ class CustomerCatalogData
      */
     private function transformRestaurant(Restaurant $restaurant): array
     {
-        $featuredMenuItem = $restaurant->menuItems->first();
+        $featuredMenuItems = $restaurant->menuItems
+            ->sortBy(fn (MenuItem $menuItem) => sprintf(
+                '%02d-%08d-%s',
+                $this->menuItemCategoryPriority($menuItem->category),
+                $menuItem->price,
+                mb_strtolower($menuItem->name),
+            ))
+            ->values();
+
+        $featuredMenuItem = $featuredMenuItems->first();
 
         return [
             'id' => $restaurant->id,
@@ -218,7 +227,7 @@ class CustomerCatalogData
             'featuredPrice' => $featuredMenuItem
                 ? $this->formatMoney($featuredMenuItem->price)
                 : '',
-            'menuPreview' => $restaurant->menuItems
+            'menuPreview' => $featuredMenuItems
                 ->take(3)
                 ->map(fn (MenuItem $menuItem) => [
                     'id' => $menuItem->id,
@@ -230,6 +239,21 @@ class CustomerCatalogData
                 ])
                 ->values(),
         ];
+    }
+
+    private function menuItemCategoryPriority(string $category): int
+    {
+        $normalizedCategory = mb_strtolower($category);
+
+        if (str_contains($normalizedCategory, 'drink') || str_contains($normalizedCategory, 'dessert')) {
+            return 2;
+        }
+
+        if (str_contains($normalizedCategory, 'breakfast') || str_contains($normalizedCategory, 'snack')) {
+            return 1;
+        }
+
+        return 0;
     }
 
     /**
