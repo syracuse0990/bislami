@@ -12,6 +12,7 @@ use App\Support\CustomerCartService;
 use App\Support\CustomerOrderListData;
 use App\Support\CustomerOrderTrackingData;
 use App\Support\CustomerWorkspaceData;
+use App\Support\OrderLifecycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -139,22 +140,28 @@ class CustomerPageController extends Controller
             'checkout' => $cartOrder ? [
                 'restaurant' => $cartOrder->restaurant->name,
                 'summary' => $this->summarizeItems($cartOrder),
+                'fulfillmentType' => $cartOrder->fulfillment_type ?? 'delivery',
                 'deliveryAddress' => $cartOrder->delivery_address,
                 'deliveryLatitude' => $cartOrder->delivery_latitude,
                 'deliveryLongitude' => $cartOrder->delivery_longitude,
                 'idempotencyKey' => $cartOrder->idempotency_key,
                 'paymentMethod' => $cartOrder->payment_method,
                 'driverNotes' => $cartOrder->driver_notes ?? '',
+                'customerNotes' => $cartOrder->customer_notes ?? '',
+                'scheduledFor' => $cartOrder->scheduled_for?->format('Y-m-d\TH:i'),
                 'total' => $this->formatMoney($cartOrder->total),
             ] : [
                 'restaurant' => null,
                 'summary' => null,
+                'fulfillmentType' => 'delivery',
                 'deliveryAddress' => '',
                 'deliveryLatitude' => null,
                 'deliveryLongitude' => null,
                 'idempotencyKey' => null,
                 'paymentMethod' => '',
                 'driverNotes' => '',
+                'customerNotes' => '',
+                'scheduledFor' => '',
                 'total' => $this->formatMoney(0),
             ],
         ]);
@@ -166,7 +173,7 @@ class CustomerPageController extends Controller
         $placedOrder = DB::transaction(function () use ($request, $validated) {
             $cartOrder = $request->user()
                 ->orders()
-                ->with(['restaurant', 'orderItems'])
+                ->with(['restaurant', 'orderItems.menuItem'])
                 ->where('status', 'cart')
                 ->latest('updated_at')
                 ->lockForUpdate()
@@ -202,10 +209,37 @@ class CustomerPageController extends Controller
 
             unset($validated['idempotency_key']);
 
+            if ($this->cartContainsUnavailableItems($cartOrder)) {
+                if ($cartOrder->restaurant->autoRejectsUnavailableItems()) {
+                    $cartOrder->update([
+                        ...$validated,
+                        'status' => OrderLifecycle::REJECTED,
+                        'placed_at' => now(),
+                        'rejection_reason_code' => 'item_unavailable',
+                        'rejection_reason_note' => 'One or more dishes were unavailable when the merchant received the order.',
+                        'rejected_at' => now(),
+                    ]);
+
+                    return $cartOrder;
+                }
+
+                throw ValidationException::withMessages([
+                    'checkout' => 'One or more dishes are no longer available. Refresh the cart and try again.',
+                ]);
+            }
+
+            $initialStatus = $cartOrder->restaurant->autoAcceptsOrders()
+                ? OrderLifecycle::ACCEPTED
+                : OrderLifecycle::PENDING;
+
             $cartOrder->update([
                 ...$validated,
-                'status' => 'preparing',
+                'status' => $initialStatus,
                 'placed_at' => now(),
+                'accepted_at' => $initialStatus === OrderLifecycle::ACCEPTED ? now() : null,
+                'rejection_reason_code' => null,
+                'rejection_reason_note' => null,
+                'rejected_at' => null,
             ]);
 
             return $cartOrder;
@@ -389,7 +423,10 @@ class CustomerPageController extends Controller
             'placedAtDate' => $order->placed_at?->toDayDateTimeString() ?? 'Just now',
             'paymentMethod' => $order->payment_method,
             'driverNotes' => $order->driver_notes,
-            'canTrack' => in_array($order->status, ['preparing', 'on_the_way'], true),
+            'customerNotes' => $order->customer_notes,
+            'fulfillmentType' => $order->fulfillment_type,
+            'scheduledFor' => $order->scheduled_for?->toIso8601String(),
+            'canTrack' => in_array($order->status, OrderLifecycle::customerTrackableStatuses(), true),
             'canReorder' => $reorder['available'],
             'reorder' => $reorder,
             'items' => $order->orderItems
@@ -437,6 +474,7 @@ class CustomerPageController extends Controller
                 'user_id' => $request->user()->id,
                 'restaurant_id' => $menuItem->restaurant_id,
                 'status' => 'cart',
+                'fulfillment_type' => 'delivery',
                 'subtotal' => 0,
                 'delivery_fee' => $menuItem->restaurant->delivery_fee,
                 'service_fee' => 25,
@@ -447,6 +485,8 @@ class CustomerPageController extends Controller
                 'delivery_latitude' => null,
                 'delivery_longitude' => null,
                 'driver_notes' => null,
+                'customer_notes' => null,
+                'scheduled_for' => null,
                 'placed_at' => null,
             ])->load(['restaurant', 'orderItems']);
         }
@@ -457,6 +497,7 @@ class CustomerPageController extends Controller
             $cartOrder->update([
                 'restaurant_id' => $menuItem->restaurant_id,
                 'status' => 'cart',
+                'fulfillment_type' => 'delivery',
                 'subtotal' => 0,
                 'delivery_fee' => $menuItem->restaurant->delivery_fee,
                 'service_fee' => 25,
@@ -467,6 +508,8 @@ class CustomerPageController extends Controller
                 'delivery_latitude' => null,
                 'delivery_longitude' => null,
                 'driver_notes' => null,
+                'customer_notes' => null,
+                'scheduled_for' => null,
                 'placed_at' => null,
             ]);
 
@@ -518,12 +561,22 @@ class CustomerPageController extends Controller
 
     private function statusAccent(string $status): string
     {
-        return match ($status) {
-            'preparing' => 'bg-orange-50 text-orange-700',
-            'on_the_way' => 'bg-sky-50 text-sky-700',
-            'delivered' => 'bg-emerald-50 text-emerald-700',
-            default => 'bg-gray-100 text-gray-700',
-        };
+        return str(OrderLifecycle::accent($status))
+            ->replace(' ring-amber-200', '')
+            ->replace(' ring-blue-200', '')
+            ->replace(' ring-orange-200', '')
+            ->replace(' ring-violet-200', '')
+            ->replace(' ring-sky-200', '')
+            ->replace(' ring-emerald-200', '')
+            ->replace(' ring-rose-200', '')
+            ->replace(' ring-slate-200', '')
+            ->toString();
+    }
+
+    private function cartContainsUnavailableItems(Order $order): bool
+    {
+        return $order->orderItems
+            ->contains(fn ($item) => $item->menuItem && ! $item->menuItem->is_available);
     }
 
     private function orderNumber(Order $order): string

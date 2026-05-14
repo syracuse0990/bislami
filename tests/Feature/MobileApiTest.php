@@ -266,7 +266,7 @@ class MobileApiTest extends TestCase
         $pickupReadyOrder = Order::create([
             'user_id' => $customer->id,
             'restaurant_id' => $restaurant->id,
-            'status' => 'preparing',
+            'status' => 'ready',
             'subtotal' => 310,
             'delivery_fee' => 49,
             'service_fee' => 25,
@@ -334,19 +334,19 @@ class MobileApiTest extends TestCase
         $this->getJson('/api/v1/courier/overview')
             ->assertOk()
             ->assertJsonPath('data.overview.activeRunsCount', 1)
-            ->assertJsonPath('data.overview.availableClaimsCount', 1)
+            ->assertJsonPath('data.overview.availableClaimsCount', 2)
             ->assertJsonPath('data.overview.pickupReadyCount', 1)
             ->assertJsonPath('data.overview.mappedStopsCount', 2)
             ->assertJsonPath('data.overview.completedTodayCount', 1)
             ->assertJsonCount(1, 'data.assignedDeliveries')
             ->assertJsonPath('data.assignedDeliveries.0.orderNumber', '#BL-'.str_pad((string) $assignedOrder->id, 4, '0', STR_PAD_LEFT))
             ->assertJsonPath('data.assignedDeliveries.0.assignment.canComplete', true)
-            ->assertJsonCount(1, 'data.availableClaims')
+            ->assertJsonCount(2, 'data.availableClaims')
             ->assertJsonPath('data.availableClaims.0.orderNumber', '#BL-'.str_pad((string) $claimableOrder->id, 4, '0', STR_PAD_LEFT))
             ->assertJsonPath('data.availableClaims.0.assignment.canClaim', true)
             ->assertJsonCount(1, 'data.pickupQueue')
             ->assertJsonPath('data.pickupQueue.0.orderNumber', '#BL-'.str_pad((string) $pickupReadyOrder->id, 4, '0', STR_PAD_LEFT))
-            ->assertJsonPath('data.pickupQueue.0.status.key', 'preparing');
+            ->assertJsonPath('data.pickupQueue.0.status.key', 'ready');
     }
 
     public function test_customer_mobile_overview_endpoint_returns_home_sections_for_app_bootstrap(): void
@@ -1564,7 +1564,7 @@ class MobileApiTest extends TestCase
 
         $firstResponse
             ->assertOk()
-            ->assertJsonPath('data.status.key', 'preparing');
+            ->assertJsonPath('data.status.key', 'pending');
 
         $secondResponse
             ->assertOk()
@@ -1624,7 +1624,7 @@ class MobileApiTest extends TestCase
 
         $this->postJson("/api/v1/merchant/orders/{$order->id}/dispatch")
             ->assertOk()
-            ->assertJsonPath('data.status.key', 'on_the_way');
+            ->assertJsonPath('data.status.key', 'ready');
 
         Sanctum::actingAs($courier);
 

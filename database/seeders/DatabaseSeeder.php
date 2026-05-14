@@ -43,9 +43,47 @@ class DatabaseSeeder extends Seeder
             ['email' => 'merchant@example.com'],
             [
                 'name' => 'Demo Merchant',
+                'store_name' => 'Dhaka Grill',
                 'role' => 'merchant',
                 'password' => 'password',
                 'email_verified_at' => now(),
+                'merchant_verified_at' => now()->subDays(45),
+            ],
+        );
+
+        $merchantPartner = User::query()->updateOrCreate(
+            ['email' => 'merchant.two@example.com'],
+            [
+                'name' => 'Demo Merchant Partner',
+                'store_name' => 'Spice Lane',
+                'role' => 'merchant',
+                'password' => 'password',
+                'email_verified_at' => now(),
+                'merchant_verified_at' => now()->subDays(18),
+            ],
+        );
+
+        $merchantHealthy = User::query()->updateOrCreate(
+            ['email' => 'merchant.three@example.com'],
+            [
+                'name' => 'Demo Healthy Merchant',
+                'store_name' => 'Green Bowl',
+                'role' => 'merchant',
+                'password' => 'password',
+                'email_verified_at' => now(),
+                'merchant_verified_at' => now()->subDays(12),
+            ],
+        );
+
+        $merchantItalian = User::query()->updateOrCreate(
+            ['email' => 'merchant.four@example.com'],
+            [
+                'name' => 'Demo Italian Merchant',
+                'store_name' => 'Vento Pizza Lab',
+                'role' => 'merchant',
+                'password' => 'password',
+                'email_verified_at' => now(),
+                'merchant_verified_at' => now()->subDays(9),
             ],
         );
 
@@ -53,6 +91,16 @@ class DatabaseSeeder extends Seeder
             ['email' => 'courier@example.com'],
             [
                 'name' => 'Demo Courier',
+                'role' => 'courier',
+                'password' => 'password',
+                'email_verified_at' => now(),
+            ],
+        );
+
+        $courierPartner = User::query()->updateOrCreate(
+            ['email' => 'courier.two@example.com'],
+            [
+                'name' => 'Demo Courier Partner',
                 'role' => 'courier',
                 'password' => 'password',
                 'email_verified_at' => now(),
@@ -81,9 +129,20 @@ class DatabaseSeeder extends Seeder
                 'rating' => 4.8,
                 'delivery_fee' => 0,
                 'featured_text' => 'Best for dinner bundles and charcoal-grilled platters.',
+                'contact_phone' => '01711111111',
+                'location_address' => 'Dhanmondi 27, Dhaka',
+                'location_latitude' => 23.7529151,
+                'location_longitude' => 90.3765482,
+                'delivery_radius_km' => 6,
+                'delivery_area_coordinates' => $this->serviceAreaPolygon(23.7529151, 90.3765482, 0.0092, 0.0108),
+                'minimum_order_value' => 250,
+                'preparation_time_min' => 15,
+                'preparation_time_max' => 25,
+                'operating_hours' => Restaurant::defaultOperatingHours(),
+                'closure_dates' => ['2026-12-16'],
             ],
             [
-                'user_id' => $merchant->id,
+                'user_id' => $merchantPartner->id,
                 'name' => 'Spice Lane',
                 'slug' => 'spice-lane',
                 'category' => 'Fast Food',
@@ -93,9 +152,20 @@ class DatabaseSeeder extends Seeder
                 'rating' => 4.7,
                 'delivery_fee' => 49,
                 'featured_text' => 'Popular for quick lunch drops and office meal boxes.',
+                'contact_phone' => '01822222222',
+                'location_address' => 'Gulshan 1, Dhaka',
+                'location_latitude' => 23.7805150,
+                'location_longitude' => 90.4073910,
+                'delivery_radius_km' => 5,
+                'delivery_area_coordinates' => $this->serviceAreaPolygon(23.7805150, 90.4073910, 0.0087, 0.0101),
+                'minimum_order_value' => 180,
+                'preparation_time_min' => 12,
+                'preparation_time_max' => 20,
+                'operating_hours' => Restaurant::defaultOperatingHours(),
+                'closure_dates' => ['2026-08-15'],
             ],
             [
-                'user_id' => $merchant->id,
+                'user_id' => $merchantHealthy->id,
                 'name' => 'Green Bowl',
                 'slug' => 'green-bowl',
                 'category' => 'Healthy Bowls',
@@ -105,6 +175,40 @@ class DatabaseSeeder extends Seeder
                 'rating' => 4.9,
                 'delivery_fee' => 29,
                 'featured_text' => 'Healthy picks for late-night checkout and repeat orders.',
+                'contact_phone' => '01933333333',
+                'location_address' => 'Banani 11, Dhaka',
+                'location_latitude' => 23.7935240,
+                'location_longitude' => 90.4063230,
+                'delivery_radius_km' => 7,
+                'delivery_area_coordinates' => $this->serviceAreaPolygon(23.7935240, 90.4063230, 0.0091, 0.0105),
+                'minimum_order_value' => 220,
+                'preparation_time_min' => 18,
+                'preparation_time_max' => 28,
+                'operating_hours' => Restaurant::defaultOperatingHours(),
+                'closure_dates' => ['2026-12-25'],
+            ],
+            [
+                'user_id' => $merchantItalian->id,
+                'name' => 'Vento Pizza Lab',
+                'slug' => 'vento-pizza-lab',
+                'category' => 'Italian',
+                'cuisine' => 'Pizza, Pasta, Panini',
+                'min_delivery_time' => 28,
+                'max_delivery_time' => 38,
+                'rating' => 4.6,
+                'delivery_fee' => 39,
+                'featured_text' => 'Stone-baked pizzas and silky pasta bowls built for shared dinner orders.',
+                'contact_phone' => '01644444444',
+                'location_address' => 'Uttara Sector 7, Dhaka',
+                'location_latitude' => 23.8758850,
+                'location_longitude' => 90.3795470,
+                'delivery_radius_km' => 8,
+                'delivery_area_coordinates' => $this->serviceAreaPolygon(23.8758850, 90.3795470, 0.0104, 0.0112),
+                'minimum_order_value' => 300,
+                'preparation_time_min' => 20,
+                'preparation_time_max' => 32,
+                'operating_hours' => Restaurant::defaultOperatingHours(),
+                'closure_dates' => ['2026-10-31'],
             ],
         ])->map(fn (array $restaurant) => Restaurant::query()->updateOrCreate(
             ['slug' => $restaurant['slug']],
@@ -230,6 +334,46 @@ class DatabaseSeeder extends Seeder
                 'description' => 'Overnight oats with matcha chia pudding, kiwi, banana, coconut flakes, and almond crunch.',
                 'image_path' => $this->unsplashImage('1482049016688-2d3e1b311543'),
                 'price' => 440,
+                'is_available' => true,
+            ],
+            [
+                'restaurant_id' => $restaurants[3]->id,
+                'name' => 'Burrata Margherita Pizza',
+                'slug' => 'vento-pizza-lab-burrata-margherita-pizza',
+                'category' => 'Pizza',
+                'description' => 'Wood-fired tomato pizza with torn burrata, basil oil, parmesan snow, and roasted cherry tomatoes.',
+                'image_path' => $this->unsplashImage('1513104890138-7c749659a591'),
+                'price' => 510,
+                'is_available' => true,
+            ],
+            [
+                'restaurant_id' => $restaurants[3]->id,
+                'name' => 'Truffle Mushroom Rigatoni',
+                'slug' => 'vento-pizza-lab-truffle-mushroom-rigatoni',
+                'category' => 'Pasta',
+                'description' => 'Rigatoni in truffle cream with roasted mushrooms, pecorino, and cracked black pepper.',
+                'image_path' => $this->unsplashImage('1551183053-bf91a1d81141'),
+                'price' => 460,
+                'is_available' => true,
+            ],
+            [
+                'restaurant_id' => $restaurants[3]->id,
+                'name' => 'Chicken Pesto Panini',
+                'slug' => 'vento-pizza-lab-chicken-pesto-panini',
+                'category' => 'Sandwiches',
+                'description' => 'Pressed focaccia sandwich with grilled chicken, basil pesto, provolone, tomato confit, and rocket.',
+                'image_path' => $this->unsplashImage('1504674900247-0877df9cc836'),
+                'price' => 340,
+                'is_available' => true,
+            ],
+            [
+                'restaurant_id' => $restaurants[3]->id,
+                'name' => 'Blood Orange Soda',
+                'slug' => 'vento-pizza-lab-blood-orange-soda',
+                'category' => 'Drinks',
+                'description' => 'Blood orange soda with citrus peel, rosemary syrup, and sparkling water.',
+                'image_path' => $this->unsplashImage('1497534446932-c925b458314e'),
+                'price' => 120,
                 'is_available' => true,
             ],
         ])->mapWithKeys(fn (array $menuItem) => [
@@ -431,6 +575,108 @@ class DatabaseSeeder extends Seeder
                 'line_total' => 150,
             ],
         ]);
+
+        $italianDinnerOrder = Order::query()->create([
+            'user_id' => $customer->id,
+            'courier_id' => $courier->id,
+            'restaurant_id' => $restaurants[3]->id,
+            'status' => 'delivered',
+            'subtotal' => 970,
+            'delivery_fee' => 39,
+            'service_fee' => 25,
+            'total' => 1034,
+            'payment_method' => 'Cash on delivery',
+            'idempotency_key' => '66666666-6666-6666-6666-666666666666',
+            'delivery_address' => 'Apartment 8B, Gulshan 2, Dhaka',
+            'delivery_latitude' => 23.7924960,
+            'delivery_longitude' => 90.4078060,
+            'driver_notes' => 'Lobby handoff for the evening dinner order.',
+            'placed_at' => now()->subDays(2)->setTime(19, 15),
+        ]);
+        $this->syncOrderItems($italianDinnerOrder, [
+            [
+                'menu_item_id' => $menuItems['vento-pizza-lab-burrata-margherita-pizza']->id,
+                'name' => 'Burrata Margherita Pizza',
+                'quantity' => 1,
+                'unit_price' => 510,
+                'line_total' => 510,
+            ],
+            [
+                'menu_item_id' => $menuItems['vento-pizza-lab-truffle-mushroom-rigatoni']->id,
+                'name' => 'Truffle Mushroom Rigatoni',
+                'quantity' => 1,
+                'unit_price' => 460,
+                'line_total' => 460,
+            ],
+        ]);
+
+        $partnerCourierRun = Order::query()->create([
+            'user_id' => $returningCustomer->id,
+            'courier_id' => $courierPartner->id,
+            'restaurant_id' => $restaurants[3]->id,
+            'status' => 'on_the_way',
+            'subtotal' => 630,
+            'delivery_fee' => 39,
+            'service_fee' => 25,
+            'total' => 694,
+            'payment_method' => 'Cash on delivery',
+            'idempotency_key' => '77777777-7777-7777-7777-777777777777',
+            'delivery_address' => 'Tower 4, Baridhara DOHS, Dhaka',
+            'delivery_latitude' => 23.8202780,
+            'delivery_longitude' => 90.4264510,
+            'driver_notes' => 'Call from the lobby before heading to the elevator bay.',
+            'placed_at' => now()->subMinutes(22),
+        ]);
+        $this->syncOrderItems($partnerCourierRun, [
+            [
+                'menu_item_id' => $menuItems['vento-pizza-lab-burrata-margherita-pizza']->id,
+                'name' => 'Burrata Margherita Pizza',
+                'quantity' => 1,
+                'unit_price' => 510,
+                'line_total' => 510,
+            ],
+            [
+                'menu_item_id' => $menuItems['vento-pizza-lab-blood-orange-soda']->id,
+                'name' => 'Blood Orange Soda',
+                'quantity' => 1,
+                'unit_price' => 120,
+                'line_total' => 120,
+            ],
+        ]);
+
+        $partnerCourierDelivery = Order::query()->create([
+            'user_id' => $customer->id,
+            'courier_id' => $courierPartner->id,
+            'restaurant_id' => $restaurants[1]->id,
+            'status' => 'delivered',
+            'subtotal' => 770,
+            'delivery_fee' => 49,
+            'service_fee' => 20,
+            'total' => 839,
+            'payment_method' => 'Cash on delivery',
+            'idempotency_key' => '88888888-8888-8888-8888-888888888888',
+            'delivery_address' => 'House 18, Niketan, Dhaka',
+            'delivery_latitude' => 23.7805150,
+            'delivery_longitude' => 90.4073910,
+            'driver_notes' => 'Leave with the front desk if the customer is on a call.',
+            'placed_at' => now()->subDay()->setTime(13, 20),
+        ]);
+        $this->syncOrderItems($partnerCourierDelivery, [
+            [
+                'menu_item_id' => $menuItems['spice-lane-firecracker-chicken-sliders']->id,
+                'name' => 'Firecracker Chicken Sliders',
+                'quantity' => 1,
+                'unit_price' => 360,
+                'line_total' => 360,
+            ],
+            [
+                'menu_item_id' => $menuItems['spice-lane-seoul-crispy-chicken-box']->id,
+                'name' => 'Seoul Crispy Chicken Box',
+                'quantity' => 1,
+                'unit_price' => 410,
+                'line_total' => 410,
+            ],
+        ]);
     }
 
     /**
@@ -446,5 +692,18 @@ class DatabaseSeeder extends Seeder
     private function unsplashImage(string $photoId): string
     {
         return "https://images.unsplash.com/photo-{$photoId}?auto=format&fit=crop&w=1200&q=80";
+    }
+
+    /**
+     * @return array<int, array{lat: float, lng: float}>
+     */
+    private function serviceAreaPolygon(float $latitude, float $longitude, float $latDelta, float $lngDelta): array
+    {
+        return [
+            ['lat' => round($latitude + $latDelta, 6), 'lng' => round($longitude - $lngDelta, 6)],
+            ['lat' => round($latitude + ($latDelta * 0.7), 6), 'lng' => round($longitude + $lngDelta, 6)],
+            ['lat' => round($latitude - $latDelta, 6), 'lng' => round($longitude + ($lngDelta * 0.85), 6)],
+            ['lat' => round($latitude - ($latDelta * 0.85), 6), 'lng' => round($longitude - ($lngDelta * 0.9), 6)],
+        ];
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Requests\CustomerCheckoutRequest;
 use App\Http\Resources\Api\CheckoutSessionResource;
 use App\Http\Resources\Api\OperationsOrderResource;
 use App\Models\Order;
+use App\Support\OrderLifecycle;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,12 +27,15 @@ class CheckoutController extends Controller
             'summary' => $cartOrder ? $cartOrder->orderItems
                 ->map(fn ($item) => $item->quantity.'x '.$item->name)
                 ->join(', ') : null,
+            'fulfillmentType' => $cartOrder?->fulfillment_type ?? 'delivery',
             'deliveryAddress' => $cartOrder?->delivery_address ?? '',
             'deliveryLatitude' => $cartOrder?->delivery_latitude,
             'deliveryLongitude' => $cartOrder?->delivery_longitude,
             'idempotencyKey' => $cartOrder?->idempotency_key,
             'paymentMethod' => $cartOrder?->payment_method ?? '',
             'driverNotes' => $cartOrder?->driver_notes ?? '',
+            'customerNotes' => $cartOrder?->customer_notes ?? '',
+            'scheduledFor' => $cartOrder?->scheduled_for?->toIso8601String(),
             'totalValue' => (int) ($cartOrder?->total ?? 0),
             'totalFormatted' => \App\Support\MoneyFormatter::format((int) ($cartOrder?->total ?? 0)),
         ]);
@@ -44,7 +48,7 @@ class CheckoutController extends Controller
         $order = DB::transaction(function () use ($request, $validated) {
             $cartOrder = $request->user()
                 ->orders()
-                ->with(['restaurant', 'orderItems', 'courier'])
+                ->with(['restaurant', 'orderItems.menuItem', 'courier'])
                 ->where('status', 'cart')
                 ->latest('updated_at')
                 ->lockForUpdate()
@@ -82,10 +86,37 @@ class CheckoutController extends Controller
 
             unset($validated['idempotency_key']);
 
+            if ($this->cartContainsUnavailableItems($cartOrder)) {
+                if ($cartOrder->restaurant->autoRejectsUnavailableItems()) {
+                    $cartOrder->update([
+                        ...$validated,
+                        'status' => OrderLifecycle::REJECTED,
+                        'placed_at' => now(),
+                        'rejection_reason_code' => 'item_unavailable',
+                        'rejection_reason_note' => 'One or more dishes were unavailable when the merchant received the order.',
+                        'rejected_at' => now(),
+                    ]);
+
+                    return $cartOrder->fresh(['restaurant', 'orderItems', 'courier']);
+                }
+
+                throw ValidationException::withMessages([
+                    'checkout' => 'One or more dishes are no longer available. Refresh the cart and try again.',
+                ]);
+            }
+
+            $initialStatus = $cartOrder->restaurant->autoAcceptsOrders()
+                ? OrderLifecycle::ACCEPTED
+                : OrderLifecycle::PENDING;
+
             $cartOrder->update([
                 ...$validated,
-                'status' => 'preparing',
+                'status' => $initialStatus,
                 'placed_at' => now(),
+                'accepted_at' => $initialStatus === OrderLifecycle::ACCEPTED ? now() : null,
+                'rejection_reason_code' => null,
+                'rejection_reason_note' => null,
+                'rejected_at' => null,
             ]);
 
             return $cartOrder->fresh(['restaurant', 'orderItems', 'courier']);
@@ -123,5 +154,11 @@ class CheckoutController extends Controller
         ])->save();
 
         return $order;
+    }
+
+    private function cartContainsUnavailableItems(Order $order): bool
+    {
+        return $order->orderItems
+            ->contains(fn ($item) => $item->menuItem && ! $item->menuItem->is_available);
     }
 }

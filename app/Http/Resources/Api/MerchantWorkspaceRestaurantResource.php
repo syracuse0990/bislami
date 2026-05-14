@@ -47,6 +47,7 @@ class MerchantWorkspaceRestaurantResource extends JsonResource
                 'pausedMenuItems' => (int) $this->paused_menu_items_count,
                 'activeOrders' => (int) $this->active_orders_count,
             ],
+            'orderSettings' => $this->normalizedOrderSettings(),
         ];
     }
 }

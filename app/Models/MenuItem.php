@@ -16,7 +16,14 @@ use Illuminate\Support\Facades\Storage;
     'description',
     'image_path',
     'price',
+    'promo_price',
     'is_available',
+    'availability_starts_at',
+    'availability_ends_at',
+    'variants',
+    'add_ons',
+    'modifiers',
+    'bundle_items',
 ])]
 class MenuItem extends Model
 {
@@ -26,6 +33,10 @@ class MenuItem extends Model
     {
         return [
             'is_available' => 'boolean',
+            'variants' => 'array',
+            'add_ons' => 'array',
+            'modifiers' => 'array',
+            'bundle_items' => 'array',
         ];
     }
 
@@ -49,5 +60,10 @@ class MenuItem extends Model
         }
 
         return Storage::disk('wasabi')->url($this->image_path);
+    }
+
+    public function effectivePriceValue(): int
+    {
+        return (int) ($this->promo_price ?: $this->price);
     }
 }

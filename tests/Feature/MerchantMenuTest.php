@@ -19,7 +19,7 @@ class MerchantMenuTest extends TestCase
         $merchant = User::factory()->merchant()->create();
         $customer = User::factory()->customer()->create();
 
-        $visibleRestaurant = Restaurant::create([
+        $restaurant = Restaurant::create([
             'user_id' => $merchant->id,
             'name' => 'Dhaka Grill',
             'slug' => 'dhaka-grill',
@@ -33,22 +33,8 @@ class MerchantMenuTest extends TestCase
             'is_visible' => true,
         ]);
 
-        $hiddenRestaurant = Restaurant::create([
-            'user_id' => $merchant->id,
-            'name' => 'Green Bowl',
-            'slug' => 'green-bowl',
-            'category' => 'Healthy Bowls',
-            'cuisine' => 'Salads, Smoothies, Protein Plates',
-            'min_delivery_time' => 25,
-            'max_delivery_time' => 35,
-            'rating' => 4.9,
-            'delivery_fee' => 29,
-            'featured_text' => 'Healthy picks for late-night checkout.',
-            'is_visible' => false,
-        ]);
-
         MenuItem::create([
-            'restaurant_id' => $visibleRestaurant->id,
+            'restaurant_id' => $restaurant->id,
             'name' => 'Smoky Beef Khichuri',
             'slug' => 'dhaka-grill-smoky-beef-khichuri',
             'category' => 'Rice Bowls',
@@ -58,7 +44,7 @@ class MerchantMenuTest extends TestCase
         ]);
 
         MenuItem::create([
-            'restaurant_id' => $visibleRestaurant->id,
+            'restaurant_id' => $restaurant->id,
             'name' => 'Lemon Mint Cooler',
             'slug' => 'dhaka-grill-lemon-mint-cooler',
             'category' => 'Drinks',
@@ -68,18 +54,18 @@ class MerchantMenuTest extends TestCase
         ]);
 
         MenuItem::create([
-            'restaurant_id' => $hiddenRestaurant->id,
-            'name' => 'Chicken Protein Bowl',
-            'slug' => 'green-bowl-chicken-protein-bowl',
-            'category' => 'Protein Plates',
-            'description' => 'Roasted chicken with grains and greens.',
-            'price' => 420,
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Charcoal Seekh Kebab Platter',
+            'slug' => 'dhaka-grill-charcoal-seekh-kebab-platter',
+            'category' => 'Kebabs',
+            'description' => 'Grilled seekh kebabs with chutney and salad.',
+            'price' => 490,
             'is_available' => true,
         ]);
 
         $preparingOrder = Order::create([
             'user_id' => $customer->id,
-            'restaurant_id' => $visibleRestaurant->id,
+            'restaurant_id' => $restaurant->id,
             'status' => 'preparing',
             'subtotal' => 450,
             'delivery_fee' => 0,
@@ -102,12 +88,12 @@ class MerchantMenuTest extends TestCase
 
         $onTheWayOrder = Order::create([
             'user_id' => $customer->id,
-            'restaurant_id' => $hiddenRestaurant->id,
+            'restaurant_id' => $restaurant->id,
             'status' => 'on_the_way',
-            'subtotal' => 420,
-            'delivery_fee' => 29,
+            'subtotal' => 490,
+            'delivery_fee' => 0,
             'service_fee' => 25,
-            'total' => 474,
+            'total' => 515,
             'payment_method' => 'bKash',
             'delivery_address' => 'Banani 11, Dhaka',
             'delivery_latitude' => null,
@@ -117,10 +103,10 @@ class MerchantMenuTest extends TestCase
         ]);
         $onTheWayOrder->orderItems()->create([
             'menu_item_id' => null,
-            'name' => 'Chicken Protein Bowl',
+            'name' => 'Charcoal Seekh Kebab Platter',
             'quantity' => 1,
-            'unit_price' => 420,
-            'line_total' => 420,
+            'unit_price' => 490,
+            'line_total' => 490,
         ]);
 
         $response = $this->actingAs($merchant)->get(route('merchant.dashboard'));
@@ -132,21 +118,20 @@ class MerchantMenuTest extends TestCase
             ->where('overview.ordersTodayCount', 2)
             ->where('overview.liveMenuItemsCount', 2)
             ->where('overview.pausedMenuItemsCount', 1)
-            ->where('overview.restaurantsCount', 2)
+                ->where('overview.restaurantsCount', 1)
             ->where('overview.visibleRestaurantsCount', 1)
-            ->where('overview.hiddenRestaurantsCount', 1)
-            ->where('overview.pinnedDestinationsCount', 1)
+                ->where('overview.hiddenRestaurantsCount', 0)
+                ->where('overview.pinnedDestinationsCount', 1)
             ->has('recentOrders', 2)
             ->where('recentOrders.0.orderNumber', '#BL-'.str_pad((string) $onTheWayOrder->id, 4, '0', STR_PAD_LEFT))
-            ->where('recentOrders.0.restaurantName', 'Green Bowl')
+                ->where('recentOrders.0.restaurantName', 'Dhaka Grill')
             ->where('recentOrders.0.destinationHasCoordinates', false)
             ->has('recentMenuItems', 3)
-            ->where('recentMenuItems.0.name', 'Chicken Protein Bowl')
-            ->has('restaurants', 2)
-            ->where('restaurants.0.name', 'Dhaka Grill')
-            ->where('restaurants.0.liveMenuItemsCount', 1)
-            ->where('restaurants.1.name', 'Green Bowl')
-            ->where('restaurants.1.visibilityLabel', 'Hidden from discovery'));
+                ->where('recentMenuItems.0.name', 'Charcoal Seekh Kebab Platter')
+                ->has('restaurants', 1)
+                ->where('restaurants.0.name', 'Dhaka Grill')
+                ->where('restaurants.0.liveMenuItemsCount', 2)
+                    ->where('restaurants.0.visibilityLabel', 'Visible to customers'));
     }
 
     public function test_unapproved_merchant_lands_on_a_pending_approval_workspace(): void
@@ -240,7 +225,70 @@ class MerchantMenuTest extends TestCase
             ->has('restaurants', 1)
             ->where('restaurants.0.name', 'Dhaka Grill')
             ->where('restaurants.0.totalItems', 1)
-            ->where('restaurants.0.menuItems.0.name', 'Smoky Beef Khichuri'));
+            ->where('restaurants.0.menuItems.0.name', 'Smoky Beef Khichuri')
+            ->has('menuItems', 1)
+            ->where('menuItems.0.restaurantName', 'Dhaka Grill')
+            ->where('menuItems.0.name', 'Smoky Beef Khichuri'));
+    }
+
+    public function test_merchant_can_open_the_create_menu_page(): void
+    {
+        $merchant = User::factory()->merchant()->create();
+        Restaurant::create([
+            'user_id' => $merchant->id,
+            'name' => 'Green Bowl',
+            'slug' => 'green-bowl',
+            'category' => 'Healthy Bowls',
+            'cuisine' => 'Salads, Smoothies, Protein Plates',
+            'min_delivery_time' => 25,
+            'max_delivery_time' => 35,
+            'rating' => 4.9,
+            'delivery_fee' => 29,
+            'featured_text' => 'Healthy picks for late-night checkout.',
+        ]);
+
+        $this->actingAs($merchant)
+            ->get(route('merchant.menu.create'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Merchant/Menu/Form')
+                ->where('mode', 'create')
+                ->has('restaurantOptions', 1)
+                ->where('restaurantOptions.0.label', 'Green Bowl')
+                ->has('categoryOptions'));
+    }
+
+    public function test_merchant_can_open_the_edit_menu_page(): void
+    {
+        $merchant = User::factory()->merchant()->create();
+        $restaurant = Restaurant::create([
+            'user_id' => $merchant->id,
+            'name' => 'Spice Lane',
+            'slug' => 'spice-lane',
+            'category' => 'Fast Food',
+            'cuisine' => 'Street Food, Wraps, Rice Bowls',
+            'min_delivery_time' => 18,
+            'max_delivery_time' => 25,
+            'rating' => 4.7,
+            'delivery_fee' => 49,
+            'featured_text' => 'Popular for quick lunch drops and office meal boxes.',
+        ]);
+        $menuItem = MenuItem::create([
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Street Wrap Combo',
+            'slug' => 'spice-lane-street-wrap-combo',
+            'category' => 'Wraps',
+            'description' => 'Double chicken wrap with masala fries and dip.',
+            'price' => 320,
+            'is_available' => true,
+        ]);
+
+        $this->actingAs($merchant)
+            ->get(route('merchant.menu.edit', $menuItem))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Merchant/Menu/Form')
+                ->where('mode', 'edit')
+                ->where('menuItem.name', 'Street Wrap Combo')
+                ->where('menuItem.restaurantName', 'Spice Lane'));
     }
 
     public function test_merchant_can_create_a_menu_item_for_their_restaurant(): void
@@ -321,6 +369,108 @@ class MerchantMenuTest extends TestCase
             'description' => 'Double chicken wrap with extra fries and dip.',
             'price' => 360,
             'is_available' => false,
+        ]);
+    }
+
+    public function test_merchant_can_store_advanced_menu_metadata(): void
+    {
+        $merchant = User::factory()->merchant()->create();
+        $restaurant = Restaurant::create([
+            'user_id' => $merchant->id,
+            'name' => 'Spice Lane',
+            'slug' => 'spice-lane',
+            'category' => 'Fast Food',
+            'cuisine' => 'Street Food, Wraps, Rice Bowls',
+            'min_delivery_time' => 18,
+            'max_delivery_time' => 25,
+            'rating' => 4.7,
+            'delivery_fee' => 49,
+            'featured_text' => 'Popular for quick lunch drops and office meal boxes.',
+        ]);
+
+        $this->actingAs($merchant)
+            ->post(route('merchant.menu.store'), [
+                'restaurant_id' => $restaurant->id,
+                'name' => 'Street Wrap Combo',
+                'category' => 'Wraps',
+                'description' => 'Double chicken wrap with masala fries and dip.',
+                'price' => 320,
+                'promo_price' => 290,
+                'availability_starts_at' => '11:00',
+                'availability_ends_at' => '22:00',
+                'variants' => [
+                    ['name' => 'Regular', 'price_delta' => 0],
+                    ['name' => 'Large', 'price_delta' => 60],
+                ],
+                'add_ons' => [
+                    ['name' => 'Extra sauce', 'price' => 20],
+                ],
+                'modifiers' => [
+                    ['name' => 'Spice level', 'options' => ['Mild', 'Hot']],
+                ],
+                'bundle_items' => [
+                    ['name' => 'Fries', 'quantity' => 1],
+                ],
+                'is_available' => true,
+            ])
+            ->assertRedirect(route('merchant.menu.index'));
+
+        $this->assertDatabaseHas('menu_items', [
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Street Wrap Combo',
+            'promo_price' => 290,
+            'availability_starts_at' => '11:00',
+            'availability_ends_at' => '22:00',
+        ]);
+
+        $menuItem = MenuItem::query()->where('restaurant_id', $restaurant->id)->where('name', 'Street Wrap Combo')->firstOrFail();
+
+        $this->assertSame([
+            ['name' => 'Regular', 'price_delta' => 0],
+            ['name' => 'Large', 'price_delta' => 60],
+        ], $menuItem->variants);
+        $this->assertSame([
+            ['name' => 'Extra sauce', 'price' => 20],
+        ], $menuItem->add_ons);
+        $this->assertSame([
+            ['name' => 'Spice level', 'options' => ['Mild', 'Hot']],
+        ], $menuItem->modifiers);
+        $this->assertSame([
+            ['name' => 'Fries', 'quantity' => 1],
+        ], $menuItem->bundle_items);
+    }
+
+    public function test_merchant_can_delete_their_menu_item(): void
+    {
+        $merchant = User::factory()->merchant()->create();
+        $restaurant = Restaurant::create([
+            'user_id' => $merchant->id,
+            'name' => 'Spice Lane',
+            'slug' => 'spice-lane',
+            'category' => 'Fast Food',
+            'cuisine' => 'Street Food, Wraps, Rice Bowls',
+            'min_delivery_time' => 18,
+            'max_delivery_time' => 25,
+            'rating' => 4.7,
+            'delivery_fee' => 49,
+            'featured_text' => 'Popular for quick lunch drops and office meal boxes.',
+        ]);
+        $menuItem = MenuItem::create([
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Street Wrap Combo',
+            'slug' => 'spice-lane-street-wrap-combo',
+            'category' => 'Wraps',
+            'description' => 'Double chicken wrap with masala fries and dip.',
+            'price' => 320,
+            'is_available' => true,
+        ]);
+
+        $this->actingAs($merchant)
+            ->delete(route('merchant.menu.destroy', $menuItem))
+            ->assertRedirect(route('merchant.menu.index'));
+
+        $this->assertDatabaseMissing('menu_items', [
+            'id' => $menuItem->id,
         ]);
     }
 

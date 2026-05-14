@@ -1,7 +1,7 @@
 <script setup>
-import { computed } from 'vue';
-import GuestLayout from '@/Layouts/GuestLayout.vue';
+import AuthSplitLayout from '@/Layouts/AuthSplitLayout.vue';
 import PrimaryButton from '@/Components/UI/Buttons/PrimaryButton.vue';
+import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -19,43 +19,58 @@ const submit = () => {
 const verificationLinkSent = computed(
     () => props.status === 'verification-link-sent',
 );
+
+const verificationHighlights = [
+    'Confirm your email before protected account actions continue.',
+    'Keep customer orders, merchant tools, and operations access secure.',
+    'Use the same verified identity across every BizLami workspace.',
+];
 </script>
 
 <template>
-    <GuestLayout>
+    <AuthSplitLayout
+        hero-title="Verify your email and keep your BizLami account fully unlocked."
+        hero-description="Email verification keeps ordering, merchant access, and account recovery tied to the right person before sensitive actions continue."
+        :highlights="verificationHighlights"
+        panel-title="Verify your email"
+        panel-description="Check your inbox for the verification link, or resend one if you need a fresh email."
+        mobile-description="Verify your email before continuing into protected BizLami account actions."
+        content-width-class="max-w-[520px] xl:max-w-[560px]"
+        :panel-chrome="false"
+    >
         <Head title="Email Verification" />
 
-        <div class="mb-4 text-sm text-gray-600">
-            Thanks for signing up! Before getting started, could you verify your
-            email address by clicking on the link we just emailed to you? If you
-            didn't receive the email, we will gladly send you another.
+        <div class="rounded-[20px] border border-[#e7edf3] bg-white/80 px-4 py-3 text-sm leading-7 text-slate-500">
+            Thanks for signing up. Before getting started, verify your email using the link we just sent. If it has not arrived yet, you can request another one below.
         </div>
 
         <div
-            class="mb-4 text-sm font-medium text-green-600"
             v-if="verificationLinkSent"
+            class="rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700"
         >
-            A new verification link has been sent to the email address you
-            provided during registration.
+            A new verification link has been sent to the email address you provided during registration.
         </div>
 
-        <form @submit.prevent="submit">
-            <div class="mt-4 flex items-center justify-between">
+        <form class="space-y-4" @submit.prevent="submit">
+            <div class="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
                 <PrimaryButton
+                    class="w-full sm:w-auto"
                     :class="{ 'opacity-25': form.processing }"
                     :disabled="form.processing"
                 >
-                    Resend Verification Email
+                    Resend verification email
                 </PrimaryButton>
 
                 <Link
                     :href="route('logout')"
                     method="post"
                     as="button"
-                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    >Log Out</Link
+                    class="text-sm font-semibold text-[var(--brand-teal)] transition hover:text-[var(--brand-orange-deep)]"
+                >
+                    Log out
+                </Link>
                 >
             </div>
         </form>
-    </GuestLayout>
+    </AuthSplitLayout>
 </template>

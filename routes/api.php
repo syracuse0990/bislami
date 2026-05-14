@@ -51,7 +51,12 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['role:merchant', 'approved-merchant'])->prefix('merchant')->name('api.merchant.')->group(function () {
             Route::get('/overview', [OperationsController::class, 'merchantOverview'])->name('overview.show');
             Route::get('/orders', [OperationsController::class, 'merchantQueue'])->name('orders.index');
+            Route::patch('/orders/{order}', [OperationsController::class, 'merchantUpdate'])->name('orders.update');
+            Route::post('/orders/{order}/accept', [OperationsController::class, 'merchantAccept'])->name('orders.accept');
+            Route::post('/orders/{order}/reject', [OperationsController::class, 'merchantReject'])->name('orders.reject');
+            Route::post('/orders/{order}/start-preparing', [OperationsController::class, 'merchantStartPreparing'])->name('orders.start-preparing');
             Route::post('/orders/{order}/dispatch', [OperationsController::class, 'merchantDispatch'])->name('orders.dispatch');
+            Route::post('/orders/{order}/complete-pickup', [OperationsController::class, 'merchantCompletePickup'])->name('orders.complete-pickup');
         });
 
         Route::middleware('role:courier')->prefix('courier')->name('api.courier.')->group(function () {

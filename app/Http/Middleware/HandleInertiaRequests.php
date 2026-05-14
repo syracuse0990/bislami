@@ -48,6 +48,24 @@ class HandleInertiaRequests extends Middleware
                 'googleMaps' => [
                     'enabled' => filled(config('services.google_maps.key')),
                 ],
+                'socialAuth' => [
+                    'google' => [
+                        'enabled' => filled(config('services.google.client_id'))
+                            && filled(config('services.google.client_secret')),
+                    ],
+                ],
+                'realtime' => [
+                    'enabled' => config('broadcasting.default') === 'pusher'
+                        && filled(config('broadcasting.connections.pusher.key'))
+                        && filled(config('broadcasting.connections.pusher.options.host')),
+                    'key' => config('broadcasting.connections.pusher.key'),
+                    'cluster' => config('broadcasting.connections.pusher.options.cluster'),
+                    'wsHost' => config('broadcasting.connections.pusher.options.host'),
+                    'wsPort' => (int) config('broadcasting.connections.pusher.options.port', 80),
+                    'wssPort' => (int) config('broadcasting.connections.pusher.options.port', 443),
+                    'forceTLS' => (bool) config('broadcasting.connections.pusher.options.useTLS', false),
+                    'authEndpoint' => url('/broadcasting/auth'),
+                ],
             ],
             'seo' => [
                 'appUrl' => rtrim((string) config('app.url'), '/'),

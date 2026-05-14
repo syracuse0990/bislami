@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\Restaurant;
+use App\Support\OrderLifecycle;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -43,6 +44,7 @@ class MerchantWorkspacePageController extends Controller
                 'delivery_fee',
                 'featured_text',
                 'is_visible',
+                'order_settings',
             ])
             ->withCount([
                 'menuItems',
@@ -86,7 +88,13 @@ class MerchantWorkspacePageController extends Controller
         return Inertia::render('Merchant/Dashboard', [
             'overview' => [
                 'activeOrdersCount' => $activeOrders->count(),
-                'preparingOrdersCount' => $activeOrders->where('status', 'preparing')->count(),
+                'pendingOrdersCount' => $activeOrders->where('status', OrderLifecycle::PENDING)->count(),
+                'acceptedOrdersCount' => $activeOrders->where('status', OrderLifecycle::ACCEPTED)->count(),
+                'preparingOrdersCount' => $activeOrders
+                    ->filter(fn (Order $order) => in_array(OrderLifecycle::normalize($order->status), [OrderLifecycle::ACCEPTED, OrderLifecycle::PREPARING], true))
+                    ->count(),
+                'readyOrdersCount' => $activeOrders->where('status', OrderLifecycle::READY)->count(),
+                'scheduledOrdersCount' => $activeOrders->filter(fn (Order $order) => $order->scheduled_for !== null)->count(),
                 'ordersTodayCount' => $ordersTodayCount,
                 'liveMenuItemsCount' => (int) $restaurants->sum('live_menu_items_count'),
                 'pausedMenuItemsCount' => (int) $restaurants->sum('paused_menu_items_count'),
@@ -115,7 +123,7 @@ class MerchantWorkspacePageController extends Controller
      */
     private function activeStatuses(): array
     {
-        return ['preparing', 'on_the_way'];
+        return OrderLifecycle::activeStatuses();
     }
 
     /**
@@ -136,27 +144,27 @@ class MerchantWorkspacePageController extends Controller
      */
     private function transformDashboardOrder(Order $order): array
     {
+        $fulfillmentType = $order->fulfillment_type ?? 'delivery';
+
         return [
             'id' => $order->id,
             'orderNumber' => '#BL-'.str_pad((string) $order->id, 4, '0', STR_PAD_LEFT),
             'restaurantName' => $order->restaurant->name,
             'customerName' => $order->user->name,
             'statusKey' => $order->status,
-            'statusLabel' => str($order->status)->replace('_', ' ')->title()->toString(),
-            'statusAccent' => match ($order->status) {
-                'preparing' => 'bg-orange-50 text-orange-700 ring-orange-200',
-                'on_the_way' => 'bg-sky-50 text-sky-700 ring-sky-200',
-                default => 'bg-slate-100 text-slate-700 ring-slate-200',
-            },
+            'statusStageKey' => OrderLifecycle::normalize($order->status),
+            'statusLabel' => OrderLifecycle::label($order->status, $fulfillmentType),
+            'statusAccent' => OrderLifecycle::accent($order->status),
             'summary' => $order->orderItems
                 ->map(fn ($item) => $item->quantity.'x '.$item->name)
                 ->join(', '),
             'placedAt' => $order->placed_at?->diffForHumans() ?? 'Just now',
             'total' => $this->formatMoney($order->total),
-            'destinationShortLabel' => $this->shortAddress($order->delivery_address),
+            'fulfillmentType' => $fulfillmentType,
+            'scheduledFor' => $order->scheduled_for?->diffForHumans(),
+            'destinationShortLabel' => $fulfillmentType === 'pickup' ? 'Customer pickup' : $this->shortAddress($order->delivery_address),
             'destinationHasCoordinates' => $order->delivery_latitude !== null && $order->delivery_longitude !== null,
-            'assignmentLabel' => $order->courier?->name
-                ?? ($order->status === 'on_the_way' ? 'Available to claim' : 'Awaiting dispatch'),
+            'assignmentLabel' => $this->assignmentLabel($order),
         ];
     }
 
@@ -200,6 +208,7 @@ class MerchantWorkspacePageController extends Controller
             'liveMenuItemsCount' => (int) $restaurant->live_menu_items_count,
             'pausedMenuItemsCount' => (int) $restaurant->paused_menu_items_count,
             'activeOrdersCount' => (int) $restaurant->active_orders_count,
+            'orderSettings' => $restaurant->normalizedOrderSettings(),
             'visibilityLabel' => $restaurant->is_visible ? 'Visible to customers' : 'Hidden from discovery',
             'visibilityAccent' => $restaurant->is_visible
                 ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
@@ -223,5 +232,26 @@ class MerchantWorkspacePageController extends Controller
             ->filter()
             ->take(2)
             ->join(', ');
+    }
+
+    private function assignmentLabel(Order $order): string
+    {
+        if (($order->fulfillment_type ?? 'delivery') === 'pickup') {
+            return 'Customer pickup';
+        }
+
+        if ($order->status === OrderLifecycle::LEGACY_ON_THE_WAY && $order->courier_id === null) {
+            return 'Available to claim';
+        }
+
+        if ($order->courier) {
+            return $order->courier->name;
+        }
+
+        return match (OrderLifecycle::normalize($order->status)) {
+            OrderLifecycle::READY => 'Available to claim',
+            OrderLifecycle::PICKED_UP => 'Courier assigned',
+            default => 'Awaiting kitchen progress',
+        };
     }
 }

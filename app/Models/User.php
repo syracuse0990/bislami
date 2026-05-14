@@ -8,12 +8,13 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'role', 'password', 'merchant_verified_at', 'is_suspended', 'suspended_at'])]
+#[Fillable(['name', 'store_name', 'email', 'email_verified_at', 'role', 'password', 'oauth_provider', 'oauth_provider_id', 'merchant_verified_at', 'is_suspended', 'suspended_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -49,6 +50,11 @@ class User extends Authenticatable
     public function managedRestaurants(): HasMany
     {
         return $this->hasMany(Restaurant::class);
+    }
+
+    public function restaurantProfile(): HasOne
+    {
+        return $this->hasOne(Restaurant::class)->oldestOfMany();
     }
 
     public function assignedDeliveries(): HasMany

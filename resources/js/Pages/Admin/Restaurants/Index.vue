@@ -99,7 +99,7 @@ const resetFilters = () => {
         </template>
 
         <div class="py-8">
-            <div class="mx-auto max-w-6xl space-y-6 sm:px-6 lg:px-8">
+            <div class="space-y-6 px-4 sm:px-6 lg:px-0">
                 <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <article class="rounded-[28px] border border-white/80 bg-white/82 p-5 shadow-[0_26px_70px_-46px_rgba(11,77,89,0.5)]">
                         <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--brand-teal)]">Restaurants</p>

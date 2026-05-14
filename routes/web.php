@@ -7,6 +7,9 @@ use App\Http\Controllers\HomePageController;
 use App\Http\Controllers\Merchant\MerchantMenuPageController;
 use App\Http\Controllers\Merchant\MerchantMenuItemController;
 use App\Http\Controllers\Merchant\MerchantWorkspacePageController;
+use App\Http\Controllers\Merchant\MerchantOrderSettingsController;
+use App\Http\Controllers\Merchant\MerchantStoreController;
+use App\Http\Controllers\Merchant\MerchantStorePageController;
 use App\Http\Controllers\Operations\OrderOperationsPageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicCartController;
@@ -52,12 +55,24 @@ Route::middleware(['auth', 'active-user', 'verified'])->group(function () {
         Route::get('/', MerchantWorkspacePageController::class)->name('dashboard');
 
         Route::middleware('approved-merchant')->group(function () {
-            Route::get('/menu', MerchantMenuPageController::class)->name('menu.index');
+            Route::get('/profile', [MerchantStorePageController::class, 'show'])->name('profile.show');
+            Route::put('/profile', [MerchantStoreController::class, 'upsert'])->name('profile.update');
+
+            Route::get('/menu', [MerchantMenuPageController::class, 'index'])->name('menu.index');
+            Route::get('/menu/create', [MerchantMenuPageController::class, 'create'])->name('menu.create');
+            Route::get('/menu/{menuItem}/edit', [MerchantMenuPageController::class, 'edit'])->name('menu.edit');
             Route::post('/menu', [MerchantMenuItemController::class, 'store'])->name('menu.store');
             Route::patch('/menu/{menuItem}', [MerchantMenuItemController::class, 'update'])->name('menu.update');
+            Route::delete('/menu/{menuItem}', [MerchantMenuItemController::class, 'destroy'])->name('menu.destroy');
 
             Route::get('/orders', [OrderOperationsPageController::class, 'merchantQueue'])->name('orders.index');
+            Route::patch('/orders/{order}', [OrderOperationsPageController::class, 'merchantUpdate'])->name('orders.update');
+            Route::post('/orders/{order}/accept', [OrderOperationsPageController::class, 'merchantAccept'])->name('orders.accept');
+            Route::post('/orders/{order}/reject', [OrderOperationsPageController::class, 'merchantReject'])->name('orders.reject');
+            Route::post('/orders/{order}/start-preparing', [OrderOperationsPageController::class, 'merchantStartPreparing'])->name('orders.start-preparing');
             Route::post('/orders/{order}/dispatch', [OrderOperationsPageController::class, 'merchantDispatch'])->name('orders.dispatch');
+            Route::post('/orders/{order}/complete-pickup', [OrderOperationsPageController::class, 'merchantCompletePickup'])->name('orders.complete-pickup');
+            Route::patch('/restaurants/{restaurant}/order-settings', [MerchantOrderSettingsController::class, 'update'])->name('restaurants.order-settings.update');
         });
     });
 

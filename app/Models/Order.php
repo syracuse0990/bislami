@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'courier_id',
     'restaurant_id',
     'status',
+    'fulfillment_type',
     'subtotal',
     'delivery_fee',
     'service_fee',
@@ -23,7 +24,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'delivery_latitude',
     'delivery_longitude',
     'driver_notes',
+    'customer_notes',
+    'merchant_notes',
+    'rejection_reason_code',
+    'rejection_reason_note',
     'placed_at',
+    'scheduled_for',
+    'accepted_at',
+    'preparing_at',
+    'ready_at',
+    'picked_up_at',
+    'delivered_at',
+    'rejected_at',
 ])]
 class Order extends Model
 {
@@ -35,6 +47,13 @@ class Order extends Model
             'delivery_latitude' => 'float',
             'delivery_longitude' => 'float',
             'placed_at' => 'datetime',
+            'scheduled_for' => 'datetime',
+            'accepted_at' => 'datetime',
+            'preparing_at' => 'datetime',
+            'ready_at' => 'datetime',
+            'picked_up_at' => 'datetime',
+            'delivered_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 

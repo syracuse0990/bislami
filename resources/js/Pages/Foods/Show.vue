@@ -1,6 +1,6 @@
 <script setup>
-import ApplicationLogo from '@/Components/Branding/ApplicationLogo.vue';
 import AddToCartButton from '@/Components/Cart/AddToCartButton.vue';
+import PublicSiteHeader from '@/Components/Navigation/PublicSiteHeader.vue';
 import PublicSeoHead from '@/Components/Seo/PublicSeoHead.vue';
 import FoodSpotlightCard from '@/Features/customer/restaurants/components/FoodSpotlightCard.vue';
 import { toAbsoluteUrl } from '@/Support/seo';
@@ -27,6 +27,12 @@ const viewerRole = computed(() => page.props.auth?.user?.role ?? null);
 const shoppingCart = computed(() => page.props.shoppingCart ?? {
     itemsCount: 0,
 });
+const publicNavigationLinks = computed(() => [
+    { label: 'Dish details', href: '#dish-overview' },
+    { label: 'More dishes', href: '#related-dishes' },
+    { label: 'Kitchen menu', href: route('restaurants.show', props.food.restaurant.slug) },
+    { label: 'Back to discovery', href: route('home') },
+]);
 
 const siteName = computed(() => page.props.seo?.siteName ?? 'BizLami');
 const appUrl = computed(() => page.props.seo?.appUrl ?? '');
@@ -120,71 +126,18 @@ const seoStructuredData = computed(() => [
         </div>
 
         <div class="relative mx-auto min-h-screen max-w-7xl px-6 py-8 lg:px-8">
-            <header class="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-                <Link :href="route('home')" class="flex items-center gap-3">
-                    <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/92 p-2 shadow-[0_20px_48px_-32px_rgba(11,77,89,0.45)]">
-                        <img src="/images/bizlami_icon.png" alt="BizLami icon" class="h-full w-full object-contain">
-                    </div>
-
-                    <div class="hidden h-14 w-[224px] items-center rounded-[24px] bg-white/92 px-3 py-2 shadow-[0_20px_48px_-32px_rgba(11,77,89,0.45)] sm:flex">
-                        <ApplicationLogo class="h-full w-full" />
-                    </div>
-                </Link>
-
-                <nav class="flex flex-wrap items-center gap-3">
-                    <Link
-                        :href="route('restaurants.show', food.restaurant.slug)"
-                        class="inline-flex items-center rounded-full border border-white/80 bg-white/80 px-5 py-3 text-sm font-semibold text-slate-700 transition duration-200 hover:text-[var(--brand-teal)]"
-                    >
-                        Restaurant menu
-                    </Link>
-
-                    <Link
-                        :href="route('restaurants.index')"
-                        class="inline-flex items-center rounded-full border border-white/80 bg-white/80 px-5 py-3 text-sm font-semibold text-slate-700 transition duration-200 hover:text-[var(--brand-teal)]"
-                    >
-                        All kitchens
-                    </Link>
-
-                    <Link
-                        :href="route('home')"
-                        class="inline-flex items-center rounded-full border border-white/80 bg-white/80 px-5 py-3 text-sm font-semibold text-slate-700 transition duration-200 hover:text-[var(--brand-teal)]"
-                    >
-                        Back to discovery
-                    </Link>
-
-                    <Link
-                        v-if="isGuestViewer"
-                        :href="route('cart.index')"
-                        class="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-5 py-3 text-sm font-semibold text-slate-700 shadow-[0_18px_42px_-30px_rgba(11,77,89,0.22)] transition duration-200 hover:text-[var(--brand-teal)]"
-                    >
-                        Cart
-
-                        <span class="inline-flex min-w-6 items-center justify-center rounded-full bg-[var(--brand-teal)] px-2 py-0.5 text-xs font-semibold text-white">
-                            {{ cartItemsCount }}
-                        </span>
-                    </Link>
-
-                    <Link
-                        v-if="canLogin && isGuestViewer"
-                        :href="route('login')"
-                        class="inline-flex items-center rounded-full border border-white/80 bg-white/80 px-5 py-3 text-sm font-semibold text-slate-700 transition duration-200 hover:text-[var(--brand-teal)]"
-                    >
-                        Log in
-                    </Link>
-
-                    <Link
-                        v-if="canRegister && isGuestViewer"
-                        :href="route('register')"
-                        class="inline-flex items-center rounded-full bg-gradient-to-r from-[var(--brand-teal)] to-[var(--brand-orange)] px-5 py-3 text-sm font-semibold text-white shadow-[0_20px_45px_-24px_rgba(11,77,89,0.85)] transition duration-200 hover:-translate-y-0.5"
-                    >
-                        Create account
-                    </Link>
-                </nav>
-            </header>
+            <PublicSiteHeader
+                :links="publicNavigationLinks"
+                :show-cart="isGuestViewer"
+                :cart-href="route('cart.index')"
+                :cart-items-count="cartItemsCount"
+                :login-href="canLogin && isGuestViewer ? route('login') : ''"
+                :register-href="canRegister && isGuestViewer ? route('register') : ''"
+                helper-text="Stay in context while comparing the dish, the kitchen, and related items."
+            />
 
             <main class="space-y-8 pb-12 pt-6">
-                <section class="overflow-hidden rounded-[32px] border border-white/80 bg-[linear-gradient(135deg,#ffffff_0%,#fff8f1_58%,#f3fbfb_100%)] p-6 shadow-[0_34px_85px_-56px_rgba(11,77,89,0.6)] sm:p-8">
+                <section id="dish-overview" class="scroll-mt-32 overflow-hidden rounded-[32px] border border-white/80 bg-[linear-gradient(135deg,#ffffff_0%,#fff8f1_58%,#f3fbfb_100%)] p-6 shadow-[0_34px_85px_-56px_rgba(11,77,89,0.6)] sm:p-8">
                     <div class="grid gap-8 lg:grid-cols-[0.96fr_1.04fr] lg:items-center">
                         <div class="overflow-hidden rounded-[30px] bg-white/92 shadow-[0_24px_60px_-42px_rgba(11,77,89,0.45)] ring-1 ring-white">
                             <div class="aspect-[4/3] bg-[linear-gradient(135deg,#f4fbfb_0%,#fff7ef_62%,#ffffff_100%)]">
@@ -280,7 +233,7 @@ const seoStructuredData = computed(() => [
                     </div>
                 </section>
 
-                <section v-if="food.relatedItems.length" class="space-y-4">
+                <section v-if="food.relatedItems.length" id="related-dishes" class="scroll-mt-32 space-y-4">
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div>
                             <p class="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--brand-teal)]">More from this kitchen</p>

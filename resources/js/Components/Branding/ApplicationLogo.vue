@@ -4,6 +4,10 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    fit: {
+        type: String,
+        default: 'contain',
+    },
     alt: {
         type: String,
         default: 'BizLami Food Delivery App',
@@ -15,6 +19,9 @@ defineProps({
     <img
         :src="compact ? '/images/bizlami_icon.png' : '/images/bizlame_logo.png'"
         :alt="alt"
-        class="block h-full w-full object-contain"
+        :class="[
+            'block h-full w-full',
+            fit === 'cover' ? 'object-cover' : 'object-contain',
+        ]"
     />
 </template>

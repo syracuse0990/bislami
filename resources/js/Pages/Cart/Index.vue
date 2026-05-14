@@ -1,5 +1,5 @@
 <script setup>
-import ApplicationLogo from '@/Components/Branding/ApplicationLogo.vue';
+import PublicSiteHeader from '@/Components/Navigation/PublicSiteHeader.vue';
 import { Head, Link } from '@inertiajs/vue3';
 
 defineProps({
@@ -21,6 +21,13 @@ defineProps({
         }),
     },
 });
+
+const publicNavigationLinks = [
+    { label: 'Cart review', href: '#cart-review' },
+    { label: 'Order summary', href: '#order-summary' },
+    { label: 'Browse foods', href: route('home') },
+    { label: 'Kitchens', href: route('restaurants.index') },
+];
 </script>
 
 <template>
@@ -32,52 +39,15 @@ defineProps({
         </div>
 
         <div class="relative mx-auto max-w-7xl px-6 py-8 lg:px-8">
-            <header class="flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-                <Link :href="route('home')" class="flex items-center gap-3">
-                    <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/92 p-2 shadow-[0_20px_48px_-32px_rgba(11,77,89,0.45)]">
-                        <img src="/images/bizlami_icon.png" alt="BizLami icon" class="h-full w-full object-contain">
-                    </div>
-
-                    <div class="hidden h-14 w-[224px] items-center rounded-[24px] bg-white/92 px-3 py-2 shadow-[0_20px_48px_-32px_rgba(11,77,89,0.45)] sm:flex">
-                        <ApplicationLogo class="h-full w-full" />
-                    </div>
-                </Link>
-
-                <nav class="flex flex-wrap items-center gap-3">
-                    <Link
-                        :href="route('home')"
-                        class="inline-flex items-center rounded-full border border-white/80 bg-white/80 px-5 py-3 text-sm font-semibold text-slate-700 transition duration-200 hover:text-[var(--brand-teal)]"
-                    >
-                        Browse foods
-                    </Link>
-
-                    <Link
-                        :href="route('restaurants.index')"
-                        class="inline-flex items-center rounded-full border border-white/80 bg-white/80 px-5 py-3 text-sm font-semibold text-slate-700 transition duration-200 hover:text-[var(--brand-teal)]"
-                    >
-                        Kitchens
-                    </Link>
-
-                    <Link
-                        v-if="canLogin"
-                        :href="route('login')"
-                        class="inline-flex items-center rounded-full border border-white/80 bg-white/80 px-5 py-3 text-sm font-semibold text-slate-700 transition duration-200 hover:text-[var(--brand-teal)]"
-                    >
-                        Log in
-                    </Link>
-
-                    <Link
-                        v-if="canRegister"
-                        :href="route('register')"
-                        class="inline-flex items-center rounded-full bg-gradient-to-r from-[var(--brand-teal)] to-[var(--brand-orange)] px-5 py-3 text-sm font-semibold text-white shadow-[0_20px_45px_-24px_rgba(11,77,89,0.85)] transition duration-200 hover:-translate-y-0.5"
-                    >
-                        Create account
-                    </Link>
-                </nav>
-            </header>
+            <PublicSiteHeader
+                :links="publicNavigationLinks"
+                :login-href="canLogin ? route('login') : ''"
+                :register-href="canRegister ? route('register') : ''"
+                helper-text="Review the cart first, then continue to checkout only when you are ready."
+            />
 
             <main class="space-y-8 pb-16 pt-8">
-                <section class="rounded-[32px] border border-white/80 bg-white/92 p-6 shadow-[0_34px_85px_-56px_rgba(11,77,89,0.38)] sm:p-8">
+                <section id="cart-review" class="scroll-mt-32 rounded-[32px] border border-white/80 bg-white/92 p-6 shadow-[0_34px_85px_-56px_rgba(11,77,89,0.38)] sm:p-8">
                     <div class="space-y-3">
                         <p class="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--brand-orange-deep)]">Cart review</p>
                         <h1 class="text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
@@ -155,7 +125,7 @@ defineProps({
                         </div>
                     </section>
 
-                    <aside class="rounded-[32px] border border-white/80 bg-white/92 p-6 shadow-[0_30px_80px_-52px_rgba(11,77,89,0.32)] sm:p-8 lg:sticky lg:top-28 lg:self-start">
+                    <aside id="order-summary" class="scroll-mt-32 rounded-[32px] border border-white/80 bg-white/92 p-6 shadow-[0_30px_80px_-52px_rgba(11,77,89,0.32)] sm:p-8 lg:sticky lg:top-28 lg:self-start">
                         <h2 class="text-lg font-semibold text-slate-900">Order summary</h2>
 
                         <p v-if="cart.restaurant" class="mt-2 text-sm text-slate-500">

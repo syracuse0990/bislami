@@ -20,6 +20,8 @@
         "vue": "^3.4.0"
     },
     "dependencies": {
-        "@llayz46/sileo-vue": "^0.1.6"
+        "@llayz46/sileo-vue": "^0.1.6",
+        "laravel-echo": "^2.3.4",
+        "pusher-js": "^8.5.0"
     }
 }

@@ -54,6 +54,22 @@ class MerchantMenuItemController extends Controller
         return redirect()->route('merchant.menu.index');
     }
 
+    public function destroy(MenuItem $menuItem): RedirectResponse
+    {
+        abort_unless(
+            request()->user()->managedRestaurants()->whereKey($menuItem->restaurant_id)->exists(),
+            404,
+        );
+
+        if ($menuItem->image_path) {
+            Storage::disk('wasabi')->delete($menuItem->image_path);
+        }
+
+        $menuItem->delete();
+
+        return redirect()->route('merchant.menu.index')->with('success', 'Menu item deleted.');
+    }
+
     /**
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>

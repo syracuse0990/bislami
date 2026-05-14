@@ -1159,7 +1159,7 @@ class CustomerFlowTest extends TestCase
 
         $response->assertRedirect(route('customer.orders.show', $order));
 
-        $this->assertSame('preparing', $order->status);
+        $this->assertSame('pending', $order->status);
         $this->assertSame('House 12, Road 7, Dhanmondi, Dhaka', $order->delivery_address);
         $this->assertSame(23.7808874, (float) $order->getRawOriginal('delivery_latitude'));
         $this->assertSame(90.4073486, (float) $order->getRawOriginal('delivery_longitude'));

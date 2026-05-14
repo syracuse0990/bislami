@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Api\Operations;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\MerchantOrderRejectRequest;
+use App\Http\Requests\MerchantOrderUpdateRequest;
 use App\Http\Resources\Api\CourierWorkspaceResource;
 use App\Http\Resources\Api\MerchantWorkspaceResource;
 use App\Http\Resources\Api\OperationsOrderResource;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\Restaurant;
+use App\Support\OrderLifecycle;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -32,6 +36,7 @@ class OperationsController extends Controller
                 'delivery_fee',
                 'featured_text',
                 'is_visible',
+                'order_settings',
             ])
             ->where('user_id', $request->user()->id)
             ->withCount([
@@ -76,7 +81,13 @@ class OperationsController extends Controller
         return MerchantWorkspaceResource::make([
             'overview' => [
                 'activeOrdersCount' => $activeOrders->count(),
-                'preparingOrdersCount' => $activeOrders->where('status', 'preparing')->count(),
+                'pendingOrdersCount' => $activeOrders->where('status', OrderLifecycle::PENDING)->count(),
+                'acceptedOrdersCount' => $activeOrders->where('status', OrderLifecycle::ACCEPTED)->count(),
+                'preparingOrdersCount' => $activeOrders
+                    ->filter(fn (Order $order) => in_array(OrderLifecycle::normalize($order->status), [OrderLifecycle::ACCEPTED, OrderLifecycle::PREPARING], true))
+                    ->count(),
+                'readyOrdersCount' => $activeOrders->where('status', OrderLifecycle::READY)->count(),
+                'scheduledOrdersCount' => $activeOrders->filter(fn (Order $order) => $order->scheduled_for !== null)->count(),
                 'ordersTodayCount' => $ordersTodayCount,
                 'liveMenuItemsCount' => (int) $restaurants->sum('live_menu_items_count'),
                 'pausedMenuItemsCount' => (int) $restaurants->sum('paused_menu_items_count'),
@@ -100,19 +111,77 @@ class OperationsController extends Controller
                 ->with($this->orderPreviewRelations())
                 ->whereIn('status', $this->activeStatuses())
                 ->whereHas('restaurant', fn ($query) => $query->where('user_id', $request->user()->id))
+                ->latest('scheduled_for')
                 ->latest('placed_at')
                 ->latest('id')
                 ->get(),
         );
     }
 
+    public function merchantAccept(Request $request, Order $order): OperationsOrderResource
+    {
+        $this->abortUnlessMerchantOwnsOrder($request, $order);
+
+        $this->transitionOrder($order, OrderLifecycle::ACCEPTED);
+
+        return OperationsOrderResource::make($order->fresh($this->orderPreviewRelations()));
+    }
+
+    public function merchantReject(MerchantOrderRejectRequest $request, Order $order): OperationsOrderResource
+    {
+        $this->abortUnlessMerchantOwnsOrder($request, $order);
+
+        $this->transitionOrder($order, OrderLifecycle::REJECTED, [
+            'courier_id' => null,
+            ...$request->validated(),
+        ]);
+
+        return OperationsOrderResource::make($order->fresh($this->orderPreviewRelations()));
+    }
+
+    public function merchantUpdate(MerchantOrderUpdateRequest $request, Order $order): OperationsOrderResource
+    {
+        $this->abortUnlessMerchantOwnsOrder($request, $order);
+        abort_if(! OrderLifecycle::isMerchantEditable($order->status), 422, 'Only pending or accepted orders can be modified.');
+
+        $attributes = $request->validated();
+
+        if (($attributes['fulfillment_type'] ?? 'delivery') === 'pickup') {
+            $attributes['delivery_address'] = null;
+            $attributes['delivery_latitude'] = null;
+            $attributes['delivery_longitude'] = null;
+        }
+
+        $order->update($attributes);
+
+        return OperationsOrderResource::make($order->fresh($this->orderPreviewRelations()));
+    }
+
+    public function merchantStartPreparing(Request $request, Order $order): OperationsOrderResource
+    {
+        $this->abortUnlessMerchantOwnsOrder($request, $order);
+
+        $this->transitionOrder($order, OrderLifecycle::PREPARING);
+
+        return OperationsOrderResource::make($order->fresh($this->orderPreviewRelations()));
+    }
+
     public function merchantDispatch(Request $request, Order $order): OperationsOrderResource
     {
-        abort_unless($order->restaurant()->where('user_id', $request->user()->id)->exists(), 404);
+        $this->abortUnlessMerchantOwnsOrder($request, $order);
 
-        $this->transitionOrder($order, from: 'preparing', to: 'on_the_way', attributes: [
+        $this->transitionOrder($order, OrderLifecycle::READY, [
             'courier_id' => null,
         ]);
+
+        return OperationsOrderResource::make($order->fresh($this->orderPreviewRelations()));
+    }
+
+    public function merchantCompletePickup(Request $request, Order $order): OperationsOrderResource
+    {
+        $this->abortUnlessMerchantOwnsOrder($request, $order);
+
+        $this->transitionOrder($order, OrderLifecycle::DELIVERED);
 
         return OperationsOrderResource::make($order->fresh($this->orderPreviewRelations()));
     }
@@ -137,16 +206,16 @@ class OperationsController extends Controller
             ->values();
 
         $availableClaims = $deliveries
-            ->filter(fn (Order $delivery) => $delivery->status === 'on_the_way' && $delivery->courier_id === null)
+            ->filter(fn (Order $delivery) => $this->canCourierClaim($delivery))
             ->values();
 
         $pickupQueue = $deliveries
-            ->filter(fn (Order $delivery) => $delivery->status === 'preparing')
+            ->filter(fn (Order $delivery) => in_array(OrderLifecycle::normalize($delivery->status), [OrderLifecycle::PREPARING, OrderLifecycle::READY], true))
             ->values();
 
         $completedTodayCount = Order::query()
             ->where('courier_id', $courierId)
-            ->where('status', 'delivered')
+            ->where('status', OrderLifecycle::DELIVERED)
             ->whereDate('updated_at', today())
             ->count();
 
@@ -170,14 +239,35 @@ class OperationsController extends Controller
     {
         DB::transaction(function () use ($request, $order) {
             $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
+            $normalizedStatus = OrderLifecycle::normalize($lockedOrder->status);
 
-            if ($lockedOrder->status !== 'on_the_way') {
+            if ($normalizedStatus === OrderLifecycle::PICKED_UP && $lockedOrder->courier_id === $request->user()->id) {
+                return;
+            }
+
+            if ($lockedOrder->status === OrderLifecycle::LEGACY_ON_THE_WAY) {
+                if ($lockedOrder->courier_id === null) {
+                    $lockedOrder->update([
+                        'courier_id' => $request->user()->id,
+                    ]);
+
+                    return;
+                }
+
+                abort_unless($lockedOrder->courier_id === $request->user()->id, 404);
+
+                return;
+            }
+
+            if (! OrderLifecycle::isCourierClaimable($lockedOrder->status, $lockedOrder->fulfillment_type ?? 'delivery')) {
                 return;
             }
 
             if ($lockedOrder->courier_id === null) {
                 $lockedOrder->update([
                     'courier_id' => $request->user()->id,
+                    'status' => OrderLifecycle::PICKED_UP,
+                    'picked_up_at' => now(),
                 ]);
 
                 return;
@@ -193,7 +283,11 @@ class OperationsController extends Controller
     {
         abort_unless($order->courier_id === $request->user()->id, 404);
 
-        $this->transitionOrder($order, from: 'on_the_way', to: 'delivered');
+        if (! OrderLifecycle::isCourierCompletable($order->status, $order->fulfillment_type ?? 'delivery')) {
+            return OperationsOrderResource::make($order->fresh($this->orderPreviewRelations()));
+        }
+
+        $this->transitionOrder($order, OrderLifecycle::DELIVERED);
 
         return OperationsOrderResource::make($order->fresh($this->orderPreviewRelations()));
     }
@@ -210,11 +304,18 @@ class OperationsController extends Controller
         return response()->json([
             'overview' => [
                 'activeOrders' => $activeOrders->count(),
-                'preparingOrders' => $activeOrders->where('status', 'preparing')->count(),
-                'awaitingCourier' => $activeOrders
-                    ->filter(fn (Order $order) => $order->status === 'on_the_way' && $order->courier_id === null)
+                'preparingOrders' => $activeOrders
+                    ->filter(fn (Order $order) => in_array(OrderLifecycle::normalize($order->status), [OrderLifecycle::ACCEPTED, OrderLifecycle::PREPARING], true))
                     ->count(),
-                'claimedDeliveries' => $activeOrders->filter(fn (Order $order) => $order->courier_id !== null)->count(),
+                'awaitingCourier' => $activeOrders
+                    ->filter(fn (Order $order) => ($order->fulfillment_type ?? 'delivery') === 'delivery'
+                        && (OrderLifecycle::normalize($order->status) === OrderLifecycle::READY
+                            || $order->status === OrderLifecycle::LEGACY_ON_THE_WAY)
+                        && $order->courier_id === null)
+                    ->count(),
+                'claimedDeliveries' => $activeOrders
+                    ->filter(fn (Order $order) => $order->courier_id !== null && OrderLifecycle::normalize($order->status) === OrderLifecycle::PICKED_UP)
+                    ->count(),
                 'pinnedDestinations' => $activeOrders
                     ->filter(fn (Order $order) => $order->delivery_latitude !== null && $order->delivery_longitude !== null)
                     ->count(),
@@ -228,19 +329,20 @@ class OperationsController extends Controller
      */
     private function activeStatuses(): array
     {
-        return ['preparing', 'on_the_way'];
+        return OrderLifecycle::activeStatuses();
     }
 
-    private function courierVisibleOrders(int $courierId)
+    private function courierVisibleOrders(int $courierId): Builder
     {
         return Order::query()
             ->with($this->orderPreviewRelations())
+            ->where('fulfillment_type', 'delivery')
             ->where(function ($query) use ($courierId) {
                 $query
-                    ->where('status', 'preparing')
+                    ->whereIn('status', [OrderLifecycle::PREPARING, OrderLifecycle::READY])
                     ->orWhere(function ($nestedQuery) use ($courierId) {
                         $nestedQuery
-                            ->where('status', 'on_the_way')
+                            ->whereIn('status', [OrderLifecycle::PICKED_UP, OrderLifecycle::LEGACY_ON_THE_WAY])
                             ->where(function ($assignmentQuery) use ($courierId) {
                                 $assignmentQuery
                                     ->whereNull('courier_id')
@@ -248,6 +350,7 @@ class OperationsController extends Controller
                             });
                     });
             })
+                        ->latest('scheduled_for')
             ->latest('placed_at')
             ->latest('id');
     }
@@ -268,15 +371,47 @@ class OperationsController extends Controller
     /**
      * @param  array<string, mixed>  $attributes
      */
-    private function transitionOrder(Order $order, string $from, string $to, array $attributes = []): void
+    private function transitionOrder(Order $order, string $to, array $attributes = []): void
     {
-        if ($order->status === $to || $order->status !== $from) {
+        if ($order->status === $to) {
             return;
         }
 
-        $order->update([
+        if (! OrderLifecycle::canTransition($order->status, $to, $order->fulfillment_type ?? 'delivery')) {
+            return;
+        }
+
+        $timestampColumn = OrderLifecycle::timestampColumnFor($to);
+
+        $payload = [
             'status' => $to,
             ...$attributes,
-        ]);
+        ];
+
+        if ($timestampColumn) {
+            $payload[$timestampColumn] = now();
+        }
+
+        if ($to !== OrderLifecycle::REJECTED) {
+            $payload['rejection_reason_code'] = null;
+            $payload['rejection_reason_note'] = null;
+            $payload['rejected_at'] = null;
+        }
+
+        $order->update($payload);
+    }
+
+    private function canCourierClaim(Order $order): bool
+    {
+        $fulfillmentType = $order->fulfillment_type ?? 'delivery';
+
+        return $order->courier_id === null
+            && (OrderLifecycle::isCourierClaimable($order->status, $fulfillmentType)
+                || ($order->status === OrderLifecycle::LEGACY_ON_THE_WAY && $fulfillmentType === 'delivery'));
+    }
+
+    private function abortUnlessMerchantOwnsOrder(Request $request, Order $order): void
+    {
+        abort_unless($order->restaurant()->where('user_id', $request->user()->id)->exists(), 404);
     }
 }

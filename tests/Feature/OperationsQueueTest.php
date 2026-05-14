@@ -82,7 +82,7 @@ class OperationsQueueTest extends TestCase
         $pickupReadyOrder = Order::create([
             'user_id' => $customer->id,
             'restaurant_id' => $restaurant->id,
-            'status' => 'preparing',
+            'status' => 'ready',
             'subtotal' => 310,
             'delivery_fee' => 49,
             'service_fee' => 25,
@@ -150,19 +150,19 @@ class OperationsQueueTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Courier/Dashboard')
             ->where('overview.activeRunsCount', 1)
-            ->where('overview.availableClaimsCount', 1)
+            ->where('overview.availableClaimsCount', 2)
             ->where('overview.pickupReadyCount', 1)
             ->where('overview.mappedStopsCount', 2)
             ->where('overview.completedTodayCount', 1)
             ->has('assignedDeliveries', 1)
             ->where('assignedDeliveries.0.orderNumber', '#BL-'.str_pad((string) $assignedOrder->id, 4, '0', STR_PAD_LEFT))
             ->where('assignedDeliveries.0.assignment.canComplete', true)
-            ->has('availableClaims', 1)
+            ->has('availableClaims', 2)
             ->where('availableClaims.0.orderNumber', '#BL-'.str_pad((string) $claimableOrder->id, 4, '0', STR_PAD_LEFT))
             ->where('availableClaims.0.assignment.canClaim', true)
             ->has('pickupQueue', 1)
             ->where('pickupQueue.0.orderNumber', '#BL-'.str_pad((string) $pickupReadyOrder->id, 4, '0', STR_PAD_LEFT))
-            ->where('pickupQueue.0.statusKey', 'preparing'));
+            ->where('pickupQueue.0.statusKey', 'ready'));
     }
 
     public function test_unapproved_merchant_is_redirected_away_from_order_operations(): void
@@ -335,7 +335,7 @@ class OperationsQueueTest extends TestCase
         $pinnedOrder = Order::create([
             'user_id' => $customer->id,
             'restaurant_id' => $restaurant->id,
-            'status' => 'preparing',
+            'status' => 'ready',
             'subtotal' => 290,
             'delivery_fee' => 49,
             'service_fee' => 25,
@@ -407,9 +407,9 @@ class OperationsQueueTest extends TestCase
             ->where('deliveries.0.destination.hasCoordinates', false)
             ->where('deliveries.0.assignment.canClaim', true)
             ->where('deliveries.0.assignment.courierId', null)
-            ->where('deliveries.1.statusKey', 'preparing')
+            ->where('deliveries.1.statusKey', 'ready')
             ->where('deliveries.1.destination.hasCoordinates', true)
-            ->where('deliveries.1.assignment.canClaim', false)
+            ->where('deliveries.1.assignment.canClaim', true)
             ->where('deliveries.1.destination.latitude', 23.7529151)
             ->where('deliveries.1.destination.longitude', 90.3765482));
     }
@@ -449,13 +449,13 @@ class OperationsQueueTest extends TestCase
             ->post(route('merchant.orders.dispatch', $order))
             ->assertRedirect(route('merchant.orders.index'));
 
-        $this->assertSame('on_the_way', $order->fresh()->status);
+        $this->assertSame('ready', $order->fresh()->status);
 
         $this->actingAs($merchant)
             ->post(route('merchant.orders.dispatch', $order))
             ->assertRedirect(route('merchant.orders.index'));
 
-        $this->assertSame('on_the_way', $order->fresh()->status);
+        $this->assertSame('ready', $order->fresh()->status);
     }
 
     public function test_merchant_cannot_dispatch_another_merchants_order(): void

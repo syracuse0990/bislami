@@ -21,7 +21,7 @@ const settings = {
 </script>
 
 <template>
-    <AppShellLayout :home="home" :navigation="navigation" :settings="settings">
+    <AppShellLayout :home="home" :navigation="navigation" :settings="settings" navigation-orientation="horizontal">
         <template v-if="$slots.header" #header>
             <slot name="header" />
         </template>

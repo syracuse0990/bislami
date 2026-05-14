@@ -1,55 +1,10 @@
 <script setup>
 import InputError from '@/Components/Forms/InputError.vue';
 import InputLabel from '@/Components/Forms/InputLabel.vue';
+import { DEFAULT_CENTER, loadGoogleMaps } from '@/Support/googleMapsLoader';
 import { onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue';
 
 defineOptions({ inheritAttrs: false });
-
-const DEFAULT_CENTER = { lat: 23.8103, lng: 90.4125 };
-
-let googleMapsPromise;
-
-const loadGoogleMaps = () => {
-    if (typeof window === 'undefined') {
-        return Promise.reject(new Error('Google Maps is only available in the browser.'));
-    }
-
-    if (window.google?.maps?.places) {
-        return Promise.resolve(window.google);
-    }
-
-    if (googleMapsPromise) {
-        return googleMapsPromise;
-    }
-
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-    if (!apiKey) {
-        return Promise.reject(new Error('VITE_GOOGLE_MAPS_API_KEY is not configured.'));
-    }
-
-    googleMapsPromise = new Promise((resolve, reject) => {
-        const existingScript = document.querySelector('script[data-google-maps-loader="true"]');
-
-        if (existingScript) {
-            existingScript.addEventListener('load', () => resolve(window.google), { once: true });
-            existingScript.addEventListener('error', () => reject(new Error('Unable to load Google Maps.')), { once: true });
-
-            return;
-        }
-
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=weekly`;
-        script.async = true;
-        script.defer = true;
-        script.dataset.googleMapsLoader = 'true';
-        script.onload = () => resolve(window.google);
-        script.onerror = () => reject(new Error('Unable to load Google Maps.'));
-        document.head.appendChild(script);
-    });
-
-    return googleMapsPromise;
-};
 
 const props = defineProps({
     id: {
@@ -66,7 +21,7 @@ const props = defineProps({
     },
     helper: {
         type: String,
-        default: 'Search by address or choose a suggested location to pin the map.',
+        default: 'Search by address, click the map, or drag the pin to the exact location.',
     },
 });
 
@@ -88,12 +43,23 @@ const input = ref(null);
 const mapContainer = ref(null);
 const mapsError = ref('');
 const mapsReady = ref(false);
+const mapType = ref('roadmap');
 
 let autocomplete;
 let geocoder;
 let map;
 let marker;
 let geocodeTimeout;
+let mapClickListener;
+let markerDragListener;
+
+function setMapType(nextMapType) {
+    mapType.value = nextMapType;
+
+    if (map) {
+        map.setMapTypeId(nextMapType);
+    }
+}
 
 const extractPosition = (location) => {
     if (!location) {
@@ -118,6 +84,7 @@ const focusMap = (location, zoom = 16) => {
         return;
     }
 
+    marker.setVisible(true);
     map.setCenter(position);
     map.setZoom(zoom);
     marker.setPosition(position);
@@ -144,8 +111,9 @@ const resetMap = () => {
     }
 
     map.setCenter(DEFAULT_CENTER);
-    map.setZoom(12);
+    map.setZoom(14);
     marker.setPosition(DEFAULT_CENTER);
+    marker.setVisible(true);
 };
 
 const handleInput = () => {
@@ -172,6 +140,22 @@ const geocodeAddress = (address) => {
     });
 };
 
+const reverseGeocodePosition = (location) => {
+    const position = extractPosition(location);
+
+    if (!geocoder || !position) {
+        return;
+    }
+
+    geocoder.geocode({ location: position }, (results, status) => {
+        if (status !== 'OK' || !results?.length) {
+            return;
+        }
+
+        model.value = results[0].formatted_address || model.value;
+    });
+};
+
 const initialiseMap = async () => {
     if (!mapContainer.value || !input.value) {
         return;
@@ -187,7 +171,8 @@ const initialiseMap = async () => {
         geocoder = new window.google.maps.Geocoder();
         map = new window.google.maps.Map(mapContainer.value, {
             center: initialPosition,
-            zoom: 12,
+            zoom: latitude.value !== null && longitude.value !== null ? 15 : 14,
+            mapTypeId: mapType.value,
             mapTypeControl: false,
             streetViewControl: false,
             fullscreenControl: false,
@@ -195,9 +180,29 @@ const initialiseMap = async () => {
         marker = new window.google.maps.Marker({
             map,
             position: initialPosition,
+            draggable: true,
+            visible: true,
         });
         autocomplete = new window.google.maps.places.Autocomplete(input.value, {
             fields: ['formatted_address', 'geometry', 'name'],
+        });
+
+        mapClickListener = map.addListener('click', (event) => {
+            if (!event.latLng) {
+                return;
+            }
+
+            setCoordinates(event.latLng);
+            reverseGeocodePosition(event.latLng);
+        });
+
+        markerDragListener = marker.addListener('dragend', (event) => {
+            if (!event.latLng) {
+                return;
+            }
+
+            setCoordinates(event.latLng);
+            reverseGeocodePosition(event.latLng);
         });
 
         autocomplete.addListener('place_changed', () => {
@@ -255,6 +260,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     clearTimeout(geocodeTimeout);
+    mapClickListener?.remove();
+    markerDragListener?.remove();
 });
 </script>
 
@@ -276,42 +283,42 @@ onBeforeUnmount(() => {
                 <p class="mt-3 text-sm leading-6 text-slate-500">{{ helper }}</p>
             </div>
 
-            <div class="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
-                <div class="p-4 lg:p-5">
-                    <div class="rounded-[24px] bg-[#f4fbfb] p-4 ring-1 ring-[#dceced]">
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-teal)]">
-                            Maps assistance
-                        </p>
-                        <p class="mt-2 text-sm leading-6 text-slate-600">
-                            Start typing an address, then choose a suggestion to pin the delivery destination.
-                        </p>
-
-                        <div class="mt-4 flex flex-wrap gap-3 text-xs font-semibold uppercase tracking-[0.18em]">
-                            <span class="rounded-full bg-white px-3 py-2 text-slate-600 ring-1 ring-[#e4eded]">
-                                Autocomplete
-                            </span>
-                            <span class="rounded-full bg-white px-3 py-2 text-slate-600 ring-1 ring-[#e4eded]">
-                                Address preview
-                            </span>
-                            <span
-                                class="rounded-full px-3 py-2 ring-1"
-                                :class="latitude !== null && longitude !== null
-                                    ? 'bg-[#e9fbf8] text-[var(--brand-teal)] ring-[#bfe3da]'
-                                    : 'bg-white text-slate-600 ring-[#e4eded]'"
-                            >
-                                {{ latitude !== null && longitude !== null ? 'Pin ready' : 'Pin pending' }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <p v-if="mapsError" class="mt-4 rounded-[20px] border border-[#ffd8bf] bg-[#fff4e9] px-4 py-3 text-sm font-medium text-[var(--brand-orange-deep)]">
-                        {{ mapsError }}
+            <div class="border-t border-[#edf2f2] bg-[#fff9f1] p-4 lg:p-5">
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[20px] bg-white/70 px-4 py-3 ring-1 ring-[#f1ddc9]">
+                    <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--brand-teal)]">
+                        Map style
                     </p>
+
+                    <div class="inline-flex items-center gap-2 rounded-full bg-[#f7fbfb] p-1 ring-1 ring-[#dceced]">
+                        <button
+                            type="button"
+                            class="rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition duration-200"
+                            :class="mapType === 'roadmap'
+                                ? 'bg-[var(--brand-teal)] text-white shadow-[0_12px_28px_-18px_rgba(11,77,89,0.7)]'
+                                : 'text-slate-600 hover:text-[var(--brand-teal)]'"
+                            @click="setMapType('roadmap')"
+                        >
+                            Street
+                        </button>
+
+                        <button
+                            type="button"
+                            class="rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition duration-200"
+                            :class="mapType === 'satellite'
+                                ? 'bg-[var(--brand-teal)] text-white shadow-[0_12px_28px_-18px_rgba(11,77,89,0.7)]'
+                                : 'text-slate-600 hover:text-[var(--brand-teal)]'"
+                            @click="setMapType('satellite')"
+                        >
+                            Satellite
+                        </button>
+                    </div>
                 </div>
 
-                <div class="border-t border-[#edf2f2] bg-[#fff9f1] p-4 lg:border-l lg:border-t-0 lg:p-5">
-                    <div ref="mapContainer" class="h-[280px] overflow-hidden rounded-[24px] border border-[#f3dfcc] bg-[#fff2e4]"></div>
-                </div>
+                <div ref="mapContainer" class="h-[340px] overflow-hidden rounded-[24px] border border-[#f3dfcc] bg-[#fff2e4]"></div>
+
+                <p v-if="mapsError" class="mt-4 rounded-[20px] border border-[#ffd8bf] bg-[#fff4e9] px-4 py-3 text-sm font-medium text-[var(--brand-orange-deep)]">
+                    {{ mapsError }}
+                </p>
             </div>
         </div>
 
