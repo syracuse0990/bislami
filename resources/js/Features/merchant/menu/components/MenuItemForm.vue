@@ -4,10 +4,14 @@ import FileField from '@/Components/Forms/Fields/FileField.vue';
 import SelectField from '@/Components/Forms/Fields/SelectField.vue';
 import TextareaField from '@/Components/Forms/Fields/TextareaField.vue';
 import TextField from '@/Components/Forms/Fields/TextField.vue';
+import Time12HourField from '@/Components/Forms/Fields/Time12HourField.vue';
 import PrimaryButton from '@/Components/UI/Buttons/PrimaryButton.vue';
 import SecondaryButton from '@/Components/UI/Buttons/SecondaryButton.vue';
+import { useConfirm } from '@/Composables/useConfirm';
 import { Link, router, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+
+const { confirm } = useConfirm();
 
 const props = defineProps({
     restaurants: {
@@ -23,14 +27,6 @@ const props = defineProps({
         default: null,
     },
     submitLabel: {
-        type: String,
-        required: true,
-    },
-    title: {
-        type: String,
-        required: true,
-    },
-    description: {
         type: String,
         required: true,
     },
@@ -68,6 +64,8 @@ const defaultState = () => ({
     image: null,
     price: props.menuItem?.priceValue?.toString() ?? '',
     promo_price: props.menuItem?.promoPriceValue?.toString() ?? '',
+    pax_min: props.menuItem?.paxMin?.toString() ?? '',
+    pax_max: props.menuItem?.paxMax?.toString() ?? '',
     availability_starts_at: props.menuItem?.availabilityStartsAt ?? '',
     availability_ends_at: props.menuItem?.availabilityEndsAt ?? '',
     variants: props.menuItem?.variants?.length ? props.menuItem.variants.map(createVariant) : [createVariant()],
@@ -81,6 +79,47 @@ const form = useForm(defaultState());
 
 const hasSingleRestaurant = computed(() => props.restaurants.length === 1);
 const defaultRestaurant = computed(() => props.restaurants[0] ?? null);
+const tabs = [
+    {
+        key: 'basics',
+        label: 'Essentials',
+        step: '01',
+        hint: 'Restaurant, category, dish name, description, and base price.',
+    },
+    {
+        key: 'sales',
+        label: 'Selling',
+        step: '02',
+        hint: 'Promo rules, availability hours, and dish artwork.',
+    },
+    {
+        key: 'choices',
+        label: 'Variants and add-ons',
+        step: '03',
+        hint: 'Portions and upsells customers can add to the dish.',
+    },
+    {
+        key: 'customizations',
+        label: 'Modifiers and bundles',
+        step: '04',
+        hint: 'Option groups and combo contents for more complex dishes.',
+    },
+];
+const activeTab = ref('basics');
+const activeTabMeta = computed(() => tabs.find((tab) => tab.key === activeTab.value) ?? tabs[0]);
+const imagePreviewUrl = ref(null);
+const currentImageUrl = computed(() => imagePreviewUrl.value ?? props.menuItem?.imageUrl ?? null);
+const imageStatusMessage = computed(() => {
+    if (imagePreviewUrl.value) {
+        return 'New artwork selected. Save the dish to publish this image across merchant and customer views.';
+    }
+
+    if (props.menuItem?.imageUrl) {
+        return 'A live image is already attached to this dish.';
+    }
+
+    return 'No image uploaded yet. Add one when the dish needs a stronger visual presence in the storefront.';
+});
 
 const repeaterFactories = {
     variants: createVariant,
@@ -89,9 +128,60 @@ const repeaterFactories = {
     bundle_items: createBundleItem,
 };
 
-const setImage = (file) => {
-    form.image = file;
+const clearImagePreview = () => {
+    if (imagePreviewUrl.value) {
+        URL.revokeObjectURL(imagePreviewUrl.value);
+        imagePreviewUrl.value = null;
+    }
 };
+
+const setImage = (file) => {
+    clearImagePreview();
+
+    form.image = file;
+
+    if (file) {
+        imagePreviewUrl.value = URL.createObjectURL(file);
+        form.clearErrors('image');
+    }
+};
+
+const tabForError = (key) => {
+    if (!key) {
+        return null;
+    }
+
+    if (key.startsWith('promo_price') || key.startsWith('availability_') || key.startsWith('is_available') || key.startsWith('image')) {
+        return 'sales';
+    }
+
+    if (key.startsWith('variants') || key.startsWith('add_ons')) {
+        return 'choices';
+    }
+
+    if (key.startsWith('modifiers') || key.startsWith('bundle_items')) {
+        return 'customizations';
+    }
+
+    return 'basics';
+};
+
+watch(
+    () => ({ ...form.errors }),
+    (errors) => {
+        const firstErrorKey = Object.keys(errors)[0];
+        const tab = tabForError(firstErrorKey);
+
+        if (tab) {
+            activeTab.value = tab;
+        }
+    },
+    { deep: true },
+);
+
+onBeforeUnmount(() => {
+    clearImagePreview();
+});
 
 const addRepeaterRow = (key) => {
     form[key].push(repeaterFactories[key]());
@@ -142,10 +232,16 @@ const normalizedPayload = (data) => ({
 });
 
 const submit = () => {
-    form.transform(normalizedPayload);
+    form.transform((data) => {
+        const payload = normalizedPayload(data);
+        if (props.menuItem) {
+            payload._method = 'patch';
+        }
+        return payload;
+    });
 
     if (props.menuItem) {
-        form.patch(route('merchant.menu.update', props.menuItem.id), {
+        form.post(route('merchant.menu.update', props.menuItem.id), {
             forceFormData: true,
         });
 
@@ -157,10 +253,18 @@ const submit = () => {
     });
 };
 
-const destroy = () => {
-    if (!props.menuItem || !window.confirm(`Delete ${props.menuItem.name}?`)) {
-        return;
-    }
+const destroy = async () => {
+    if (!props.menuItem) return;
+
+    const ok = await confirm({
+        title: 'Delete menu item?',
+        message: `"${props.menuItem.name}" will be permanently removed. This cannot be undone.`,
+        confirmLabel: 'Yes, delete it',
+        cancelLabel: 'Keep item',
+        intent: 'danger',
+    });
+
+    if (!ok) return;
 
     router.delete(route('merchant.menu.destroy', props.menuItem.id));
 };
@@ -168,20 +272,6 @@ const destroy = () => {
 
 <template>
     <section class="space-y-6">
-        <header class="rounded-[32px] border border-white/80 bg-[linear-gradient(145deg,#ffffff_0%,#fff8f1_100%)] p-6 shadow-[0_24px_64px_-48px_rgba(11,77,89,0.45)] sm:p-8">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--brand-orange-deep)]">Menu workflow</p>
-                    <h3 class="mt-2 text-2xl font-semibold text-slate-900">{{ title }}</h3>
-                    <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{{ description }}</p>
-                </div>
-
-                <span class="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 ring-1 ring-[#e7efef]">
-                    {{ menuItem ? 'Editing existing item' : 'Creating new item' }}
-                </span>
-            </div>
-        </header>
-
         <div v-if="!restaurants.length" class="rounded-[28px] border border-[#f6dcc5] bg-[#fff8f1] p-5 text-sm leading-6 text-slate-600">
             You do not have a restaurant profile yet, so menu publishing stays locked until the business profile is completed.
 
@@ -196,7 +286,57 @@ const destroy = () => {
         </div>
 
         <form @submit.prevent="submit" class="space-y-6">
-            <section class="rounded-[32px] border border-white/80 bg-white/90 p-6 shadow-[0_24px_64px_-48px_rgba(11,77,89,0.45)] sm:p-8">
+            <section class="rounded-[32px] border border-white/80 bg-[linear-gradient(145deg,#ffffff_0%,#fff8f1_66%,#f6fbfb_100%)] p-6 shadow-[0_24px_64px_-48px_rgba(11,77,89,0.45)] sm:p-8">
+                <div class="flex flex-col gap-4 border-b border-[#edf2f2] pb-5 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-orange-deep)]">Tabbed menu editor</p>
+                        <p class="mt-2 text-lg font-semibold text-slate-900">{{ activeTabMeta.label }}</p>
+                        <p class="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{{ activeTabMeta.hint }}</p>
+                    </div>
+
+                    <div class="inline-flex items-center gap-3 self-start rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 ring-1 ring-[#e4eded]">
+                        <span>Step {{ activeTabMeta.step }}</span>
+                        <span class="h-1.5 w-1.5 rounded-full bg-[var(--brand-orange)]"></span>
+                        <span>{{ menuItem ? 'Edit flow' : 'Create flow' }}</span>
+                    </div>
+                </div>
+
+                <div class="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4" role="tablist" aria-label="Menu item sections">
+                    <button
+                        v-for="tab in tabs"
+                        :key="tab.key"
+                        type="button"
+                        role="tab"
+                        :aria-selected="activeTab === tab.key"
+                        class="rounded-[24px] border px-4 py-4 text-left transition duration-200"
+                        :class="activeTab === tab.key
+                            ? 'border-transparent bg-[linear-gradient(135deg,var(--brand-teal)_0%,#0b4d59_100%)] text-white shadow-[0_18px_40px_-28px_rgba(11,77,89,0.8)]'
+                            : 'border-[#dceced] bg-white text-slate-700 hover:-translate-y-0.5 hover:border-[var(--brand-orange)] hover:bg-[#fffaf4]'"
+                        @click="activeTab = tab.key"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-[11px] font-semibold uppercase tracking-[0.18em]" :class="activeTab === tab.key ? 'text-white/75' : 'text-[var(--brand-orange-deep)]'">
+                                    {{ tab.step }}
+                                </p>
+                                <p class="mt-2 text-sm font-semibold">{{ tab.label }}</p>
+                                <p class="mt-1 text-xs leading-5" :class="activeTab === tab.key ? 'text-white/75' : 'text-slate-500'">
+                                    {{ tab.hint }}
+                                </p>
+                            </div>
+
+                            <span
+                                class="rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]"
+                                :class="activeTab === tab.key ? 'bg-white/15 text-white' : 'bg-[#f8fbfb] text-[var(--brand-teal)] ring-1 ring-[#dceced]'"
+                            >
+                                {{ activeTab === tab.key ? 'Open' : 'View' }}
+                            </span>
+                        </div>
+                    </button>
+                </div>
+            </section>
+
+            <section v-if="activeTab === 'basics'" class="rounded-[32px] border border-white/80 bg-white/90 p-6 shadow-[0_24px_64px_-48px_rgba(11,77,89,0.45)] sm:p-8">
                 <div class="flex flex-col gap-2 border-b border-[#edf2f2] pb-5">
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-teal)]">Basic details</p>
                     <p class="text-sm leading-6 text-slate-600">Start with the core information the customer sees first: restaurant, category, name, description, and base price.</p>
@@ -229,7 +369,7 @@ const destroy = () => {
                     />
                 </div>
 
-                <div class="mt-4 grid gap-4 md:grid-cols-[1.4fr_0.6fr]">
+                <div class="mt-4 grid gap-4 md:grid-cols-[1.2fr_0.45fr_0.55fr]">
                     <TextField
                         :id="menuItem ? `name_${menuItem.id}` : 'name'"
                         v-model="form.name"
@@ -248,6 +388,39 @@ const destroy = () => {
                         :message="form.errors.price"
                         required
                     />
+
+                    <!-- Pax range -->
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold text-slate-600">
+                            Pax <span class="font-normal text-slate-400">(serves)</span>
+                        </label>
+                        <div class="flex items-center gap-1.5">
+                            <input
+                                :id="menuItem ? `pax_min_${menuItem.id}` : 'pax_min'"
+                                v-model="form.pax_min"
+                                type="number"
+                                min="1"
+                                max="999"
+                                step="1"
+                                placeholder="Min"
+                                class="w-full min-w-0 rounded-[10px] border border-[#d5e4e4] bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-300 focus:border-[var(--brand-teal)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-teal)]/20"
+                            >
+                            <span class="shrink-0 text-xs font-semibold text-slate-400">–</span>
+                            <input
+                                :id="menuItem ? `pax_max_${menuItem.id}` : 'pax_max'"
+                                v-model="form.pax_max"
+                                type="number"
+                                min="1"
+                                max="999"
+                                step="1"
+                                placeholder="Max"
+                                class="w-full min-w-0 rounded-[10px] border border-[#d5e4e4] bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-300 focus:border-[var(--brand-teal)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-teal)]/20"
+                            >
+                        </div>
+                        <p v-if="form.errors.pax_min || form.errors.pax_max" class="mt-1 text-xs text-red-500">
+                            {{ form.errors.pax_min || form.errors.pax_max }}
+                        </p>
+                    </div>
                 </div>
 
                 <div class="mt-4">
@@ -262,7 +435,7 @@ const destroy = () => {
                 </div>
             </section>
 
-            <div class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            <div v-if="activeTab === 'sales'" class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                 <section class="rounded-[32px] border border-white/80 bg-white/90 p-6 shadow-[0_24px_64px_-48px_rgba(11,77,89,0.45)] sm:p-8">
                     <div class="flex flex-col gap-2 border-b border-[#edf2f2] pb-5">
                         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-teal)]">Pricing and availability</p>
@@ -280,19 +453,17 @@ const destroy = () => {
                             :message="form.errors.promo_price"
                         />
 
-                        <TextField
+                        <Time12HourField
                             :id="menuItem ? `availability_starts_at_${menuItem.id}` : 'availability_starts_at'"
                             v-model="form.availability_starts_at"
                             label="Available from"
-                            type="time"
                             :message="form.errors.availability_starts_at"
                         />
 
-                        <TextField
+                        <Time12HourField
                             :id="menuItem ? `availability_ends_at_${menuItem.id}` : 'availability_ends_at'"
                             v-model="form.availability_ends_at"
                             label="Available until"
-                            type="time"
                             :message="form.errors.availability_ends_at"
                         />
                     </div>
@@ -319,20 +490,21 @@ const destroy = () => {
                             accept="image/png,image/jpeg,image/webp,image/gif"
                             helper="Uploads are stored on Wasabi and reused across customer and merchant views."
                             :message="form.errors.image"
+                            :preview-src="currentImageUrl ?? ''"
+                            :preview-alt="`${form.name || menuItem?.name || 'Dish'} image`"
                             @change="setImage"
                         />
 
                         <div class="rounded-[24px] border border-[#edf2f2] bg-[#f8fbfb] p-4">
-                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-teal)]">Current artwork</p>
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-teal)]">Artwork preview</p>
 
                             <div class="mt-3 flex items-center gap-4">
                                 <div class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-[22px] bg-white ring-1 ring-[#dceced]">
                                     <img
-                                        v-if="menuItem?.imageUrl"
-                                        :src="menuItem.imageUrl"
-                                        :alt="`${menuItem.name} image`"
-                                        class="h-full w-full object-cover"
-                                    >
+                                        v-if="currentImageUrl"
+                                        :src="currentImageUrl"
+                                        :alt="`${form.name || menuItem?.name || 'Dish'} image`"
+                                        class="h-full w-full object-cover"                                          @error="$event.target.src = '/images/bizlami_icon.png'; $event.target.classList.replace('h-full', 'h-12'); $event.target.classList.replace('w-full', 'w-12'); $event.target.classList.replace('object-cover', 'object-contain');"                                    >
                                     <img
                                         v-else
                                         src="/images/bizlami_icon.png"
@@ -342,9 +514,7 @@ const destroy = () => {
                                 </div>
 
                                 <p class="text-sm leading-6 text-slate-600">
-                                    {{ menuItem?.imageUrl
-                                        ? 'A live image is already attached to this dish.'
-                                        : 'No image uploaded yet. Add one when the dish needs a stronger visual presence in the storefront.' }}
+                                    {{ imageStatusMessage }}
                                 </p>
                             </div>
                         </div>
@@ -352,7 +522,7 @@ const destroy = () => {
                 </section>
             </div>
 
-            <div class="grid gap-6 xl:grid-cols-2">
+            <div v-if="activeTab === 'choices'" class="grid gap-6 xl:grid-cols-2">
                 <section class="rounded-[32px] border border-white/80 bg-white/90 p-6 shadow-[0_24px_64px_-48px_rgba(11,77,89,0.45)]">
                     <div class="flex items-center justify-between gap-3 border-b border-[#edf2f2] pb-5">
                         <div>
@@ -432,7 +602,7 @@ const destroy = () => {
                 </section>
             </div>
 
-            <div class="grid gap-6 xl:grid-cols-2">
+            <div v-if="activeTab === 'customizations'" class="grid gap-6 xl:grid-cols-2">
                 <section class="rounded-[32px] border border-white/80 bg-white/90 p-6 shadow-[0_24px_64px_-48px_rgba(11,77,89,0.45)]">
                     <div class="flex items-center justify-between gap-3 border-b border-[#edf2f2] pb-5">
                         <div>

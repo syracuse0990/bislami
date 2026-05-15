@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Operations;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MerchantOrderRejectRequest;
 use App\Http\Requests\MerchantOrderUpdateRequest;
+use App\Models\ActivityLog;
 use App\Models\Order;
 use App\Support\OrderLifecycle;
 use Illuminate\Database\Eloquent\Builder;
@@ -120,6 +121,14 @@ class OrderOperationsPageController extends Controller
 
         $this->transitionOrder($order, OrderLifecycle::ACCEPTED);
 
+        ActivityLog::record(
+            $request->user(),
+            $order->restaurant_id,
+            'order.accepted',
+            "Order #{$order->id} accepted.",
+            $order,
+        );
+
         return to_route('merchant.orders.index')->with('success', 'Order accepted.');
     }
 
@@ -131,6 +140,15 @@ class OrderOperationsPageController extends Controller
             'courier_id' => null,
             ...$request->validated(),
         ]);
+
+        ActivityLog::record(
+            $request->user(),
+            $order->restaurant_id,
+            'order.rejected',
+            "Order #{$order->id} rejected.",
+            $order,
+            ['reason_code' => $request->validated()['rejection_reason_code'] ?? null],
+        );
 
         return to_route('merchant.orders.index')->with('warning', 'Order rejected.');
     }
@@ -162,6 +180,14 @@ class OrderOperationsPageController extends Controller
 
         $this->transitionOrder($order, OrderLifecycle::PREPARING);
 
+        ActivityLog::record(
+            $request->user(),
+            $order->restaurant_id,
+            'order.started_preparing',
+            "Order #{$order->id} moved to preparation.",
+            $order,
+        );
+
         return to_route('merchant.orders.index')->with('success', 'Order moved into preparation.');
     }
 
@@ -172,6 +198,14 @@ class OrderOperationsPageController extends Controller
         $this->transitionOrder($order, OrderLifecycle::READY, [
             'courier_id' => null,
         ]);
+
+        ActivityLog::record(
+            $request->user(),
+            $order->restaurant_id,
+            'order.dispatched',
+            "Order #{$order->id} marked ready for dispatch.",
+            $order,
+        );
 
         return to_route('merchant.orders.index')->with('success', 'Order marked ready.');
     }

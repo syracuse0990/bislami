@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Storage;
     'is_available',
     'availability_starts_at',
     'availability_ends_at',
+    'pax_min',
+    'pax_max',
     'variants',
     'add_ons',
     'modifiers',
@@ -33,6 +35,8 @@ class MenuItem extends Model
     {
         return [
             'is_available' => 'boolean',
+            'pax_min' => 'integer',
+            'pax_max' => 'integer',
             'variants' => 'array',
             'add_ons' => 'array',
             'modifiers' => 'array',
@@ -45,21 +49,69 @@ class MenuItem extends Model
         return $this->belongsTo(Restaurant::class);
     }
 
+    public function dailyCapacities(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(MenuItemDailyCapacity::class);
+    }
+
     public function imageUrl(): ?string
     {
-        if (! $this->image_path) {
+        $imagePath = $this->normalizedImagePath();
+
+        if ($imagePath === null) {
             return null;
         }
 
-        if (str_starts_with($this->image_path, 'seed://')) {
-            return '/images/'.ltrim(substr($this->image_path, strlen('seed://')), '/');
+        if (str_starts_with($imagePath, 'seed://')) {
+            return '/images/'.ltrim(substr($imagePath, strlen('seed://')), '/');
         }
 
-        if (filter_var($this->image_path, FILTER_VALIDATE_URL)) {
-            return $this->image_path;
+        if (filter_var($imagePath, FILTER_VALIDATE_URL)) {
+            return $imagePath;
         }
 
-        return Storage::disk('wasabi')->url($this->image_path);
+        return $this->storedImageUrl($imagePath);
+    }
+
+    public function displayImageUrl(): string
+    {
+        return $this->imageUrl() ?? $this->fallbackImageUrl();
+    }
+
+    private function normalizedImagePath(): ?string
+    {
+        if (! is_string($this->image_path)) {
+            return null;
+        }
+
+        $imagePath = trim($this->image_path);
+
+        return match ($imagePath) {
+            '', '0', 'false', 'null' => null,
+            default => $imagePath,
+        };
+    }
+
+    private function fallbackImageUrl(): string
+    {
+        return match (strtolower((string) $this->category)) {
+            'drinks' => '/images/demo-foods/lemon-mint-cooler.svg',
+            'desserts', 'breakfast' => '/images/demo-foods/yogurt-parfait.svg',
+            'wraps', 'burgers', 'sandwiches' => '/images/demo-foods/street-wrap-combo.svg',
+            'protein plates' => '/images/demo-foods/chicken-protein-bowl.svg',
+            default => '/images/demo-foods/loaded-rice-bowl.svg',
+        };
+    }
+
+    private function storedImageUrl(string $imagePath): string
+    {
+        $disk = Storage::disk('wasabi');
+
+        try {
+            return $disk->temporaryUrl($imagePath, now()->addDays(7));
+        } catch (\Throwable) {
+            return $disk->url($imagePath);
+        }
     }
 
     public function effectivePriceValue(): int

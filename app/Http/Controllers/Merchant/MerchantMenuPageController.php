@@ -156,6 +156,7 @@ class MerchantMenuPageController extends Controller
             'category' => $menuItem->category,
             'description' => $menuItem->description,
             'imageUrl' => $this->menuItemImageUrl($menuItem),
+            'displayImageUrl' => $menuItem->displayImageUrl(),
             'basePrice' => \App\Support\MoneyFormatter::format((int) $menuItem->price),
             'price' => \App\Support\MoneyFormatter::format((int) $menuItem->price),
             'priceValue' => $menuItem->price,
@@ -163,11 +164,13 @@ class MerchantMenuPageController extends Controller
                 ? \App\Support\MoneyFormatter::format((int) $menuItem->promo_price)
                 : null,
             'promoPriceValue' => $menuItem->promo_price,
+            'paxMin' => $menuItem->pax_min,
+            'paxMax' => $menuItem->pax_max,
             'effectivePrice' => \App\Support\MoneyFormatter::format($menuItem->effectivePriceValue()),
             'isAvailable' => $menuItem->is_available,
             'availability' => $menuItem->is_available ? 'Live' : 'Paused',
-            'availabilityStartsAt' => $menuItem->availability_starts_at,
-            'availabilityEndsAt' => $menuItem->availability_ends_at,
+            'availabilityStartsAt' => $this->formattedAvailabilityTime($menuItem->availability_starts_at),
+            'availabilityEndsAt' => $this->formattedAvailabilityTime($menuItem->availability_ends_at),
             'availabilityWindowLabel' => $this->availabilityWindowLabel($menuItem),
             'variants' => $menuItem->variants ?? [],
             'addOns' => $menuItem->add_ons ?? [],
@@ -197,6 +200,16 @@ class MerchantMenuPageController extends Controller
 
         return collect([$menuItem->availability_starts_at, $menuItem->availability_ends_at])
             ->filter()
+            ->map(fn (?string $value) => $this->formattedAvailabilityTime($value) ?? $value)
             ->join(' - ');
+    }
+
+    private function formattedAvailabilityTime(?string $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        return substr(trim($value), 0, 5);
     }
 }

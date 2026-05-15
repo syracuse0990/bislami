@@ -117,9 +117,19 @@ class Restaurant extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function staff(): HasMany
+    {
+        return $this->hasMany(RestaurantStaff::class);
+    }
+
     public function menuItems(): HasMany
     {
         return $this->hasMany(MenuItem::class);
+    }
+
+    public function dailyMenus(): HasMany
+    {
+        return $this->hasMany(RestaurantDailyMenu::class);
     }
 
     public function orders(): HasMany

@@ -66,6 +66,7 @@ const handleChange = (event) => {
                     :src="props.previewSrc"
                     :alt="props.previewAlt || props.label"
                     class="h-24 w-24 object-cover"
+                    @error="$event.target.src = '/images/bizlami_icon.png'; $event.target.classList.replace('h-24', 'h-7'); $event.target.classList.replace('w-24', 'w-7'); $event.target.classList.replace('object-cover', 'object-contain');"
                 >
             </div>
 

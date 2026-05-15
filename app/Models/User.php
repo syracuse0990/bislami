@@ -64,8 +64,19 @@ class User extends Authenticatable
 
     public function homeRouteName(): string
     {
+        if ($this->role === 'merchant') {
+            // Cashier staff go directly to the POS terminal.
+            $staffRole = $this->staffAssignments()
+                ->where('status', 'active')
+                ->value('role');
+            if ($staffRole === 'cashier') {
+                return 'merchant.cashier.dashboard';
+            }
+
+            return 'merchant.dashboard';
+        }
+
         return match ($this->role) {
-            'merchant' => 'merchant.dashboard',
             'courier' => 'courier.dashboard',
             'admin' => 'admin.dashboard',
             default => 'customer.dashboard',
@@ -80,5 +91,10 @@ class User extends Authenticatable
     public function isSuspended(): bool
     {
         return (bool) $this->is_suspended;
+    }
+
+    public function staffAssignments(): HasMany
+    {
+        return $this->hasMany(RestaurantStaff::class);
     }
 }

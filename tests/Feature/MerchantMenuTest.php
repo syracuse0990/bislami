@@ -7,6 +7,8 @@ use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -231,6 +233,41 @@ class MerchantMenuTest extends TestCase
             ->where('menuItems.0.name', 'Smoky Beef Khichuri'));
     }
 
+    public function test_merchant_menu_page_uses_a_display_fallback_for_invalid_image_paths(): void
+    {
+        $merchant = User::factory()->merchant()->create();
+        $restaurant = Restaurant::create([
+            'user_id' => $merchant->id,
+            'name' => 'Tokyo Bento',
+            'slug' => 'tokyo-bento',
+            'category' => 'Asian Bowls',
+            'cuisine' => 'Rice Bowls, Bento, Japanese',
+            'min_delivery_time' => 20,
+            'max_delivery_time' => 30,
+            'rating' => 4.8,
+            'delivery_fee' => 0,
+            'featured_text' => 'Rice bowls and quick lunch sets.',
+        ]);
+
+        MenuItem::create([
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Tokoyaki Rice Bowl',
+            'slug' => 'tokyo-bento-tokoyaki-rice-bowl',
+            'category' => 'Rice Bowls',
+            'description' => 'Savory takoyaki over steamed rice.',
+            'image_path' => '0',
+            'price' => 390,
+            'is_available' => true,
+        ]);
+
+        $this->actingAs($merchant)
+            ->get(route('merchant.menu.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Merchant/Menu/Index')
+                ->where('menuItems.0.imageUrl', null)
+                ->where('menuItems.0.displayImageUrl', '/images/demo-foods/loaded-rice-bowl.svg'));
+    }
+
     public function test_merchant_can_open_the_create_menu_page(): void
     {
         $merchant = User::factory()->merchant()->create();
@@ -278,6 +315,8 @@ class MerchantMenuTest extends TestCase
             'slug' => 'spice-lane-street-wrap-combo',
             'category' => 'Wraps',
             'description' => 'Double chicken wrap with masala fries and dip.',
+            'availability_starts_at' => '10:00:00',
+            'availability_ends_at' => '11:00:00',
             'price' => 320,
             'is_available' => true,
         ]);
@@ -288,6 +327,8 @@ class MerchantMenuTest extends TestCase
                 ->component('Merchant/Menu/Form')
                 ->where('mode', 'edit')
                 ->where('menuItem.name', 'Street Wrap Combo')
+                ->where('menuItem.availabilityStartsAt', '10:00')
+                ->where('menuItem.availabilityEndsAt', '11:00')
                 ->where('menuItem.restaurantName', 'Spice Lane'));
     }
 
@@ -358,6 +399,8 @@ class MerchantMenuTest extends TestCase
             'category' => 'Wraps',
             'description' => 'Double chicken wrap with extra fries and dip.',
             'price' => 360,
+            'availability_starts_at' => '10:00:00',
+            'availability_ends_at' => '11:00:00',
             'is_available' => false,
         ]);
 
@@ -367,9 +410,59 @@ class MerchantMenuTest extends TestCase
             'id' => $menuItem->id,
             'name' => 'Street Wrap Combo XL',
             'description' => 'Double chicken wrap with extra fries and dip.',
+            'availability_starts_at' => '10:00',
+            'availability_ends_at' => '11:00',
             'price' => 360,
             'is_available' => false,
         ]);
+    }
+
+    public function test_merchant_can_replace_a_menu_item_image_through_a_method_spoofed_upload(): void
+    {
+        Storage::fake('wasabi');
+
+        $merchant = User::factory()->merchant()->create();
+        $restaurant = Restaurant::create([
+            'user_id' => $merchant->id,
+            'name' => 'Tokyo Bento',
+            'slug' => 'tokyo-bento',
+            'category' => 'Asian Bowls',
+            'cuisine' => 'Rice Bowls, Bento, Japanese',
+            'min_delivery_time' => 20,
+            'max_delivery_time' => 30,
+            'rating' => 4.8,
+            'delivery_fee' => 0,
+            'featured_text' => 'Rice bowls and quick lunch sets.',
+        ]);
+        $menuItem = MenuItem::create([
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Tokoyaki Rice Bowl',
+            'slug' => 'tokyo-bento-tokoyaki-rice-bowl',
+            'category' => 'Rice Bowls',
+            'description' => 'Savory takoyaki over steamed rice.',
+            'image_path' => '0',
+            'price' => 390,
+            'is_available' => true,
+        ]);
+
+        $response = $this->actingAs($merchant)->post(route('merchant.menu.update', $menuItem), [
+            '_method' => 'PATCH',
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Tokoyaki Rice Bowl',
+            'category' => 'Rice Bowls',
+            'description' => 'Savory takoyaki over steamed rice.',
+            'price' => 390,
+            'is_available' => true,
+            'image' => UploadedFile::fake()->image('tokoyaki.jpg'),
+        ]);
+
+        $response->assertRedirect(route('merchant.menu.index'));
+
+        $menuItem->refresh();
+
+        $this->assertNotNull($menuItem->image_path);
+        $this->assertNotSame('0', $menuItem->image_path);
+        Storage::disk('wasabi')->assertExists($menuItem->image_path);
     }
 
     public function test_merchant_can_store_advanced_menu_metadata(): void

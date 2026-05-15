@@ -4,8 +4,15 @@ use App\Http\Controllers\Admin\AdminManagementPageController;
 use App\Http\Controllers\Customer\CustomerPageController;
 use App\Http\Controllers\FoodPageController;
 use App\Http\Controllers\HomePageController;
+use App\Http\Controllers\Merchant\MerchantActivityLogPageController;
+use App\Http\Controllers\Merchant\MerchantDailyMenuController;
 use App\Http\Controllers\Merchant\MerchantMenuPageController;
 use App\Http\Controllers\Merchant\MerchantMenuItemController;
+use App\Http\Controllers\Merchant\MerchantStaffController;
+use App\Http\Controllers\Merchant\MerchantStaffPageController;
+use App\Http\Controllers\Merchant\CashierOrderController;
+use App\Http\Controllers\Merchant\CashierDashboardController;
+use App\Http\Controllers\Merchant\CashierPosPageController;
 use App\Http\Controllers\Merchant\MerchantWorkspacePageController;
 use App\Http\Controllers\Merchant\MerchantOrderSettingsController;
 use App\Http\Controllers\Merchant\MerchantStoreController;
@@ -59,11 +66,20 @@ Route::middleware(['auth', 'active-user', 'verified'])->group(function () {
             Route::put('/profile', [MerchantStoreController::class, 'upsert'])->name('profile.update');
 
             Route::get('/menu', [MerchantMenuPageController::class, 'index'])->name('menu.index');
+            Route::get('/menu/daily', [MerchantDailyMenuController::class, 'index'])->name('menu.daily.index');
+            Route::put('/menu/daily', [MerchantDailyMenuController::class, 'bulkUpdate'])->name('menu.daily.save');
             Route::get('/menu/create', [MerchantMenuPageController::class, 'create'])->name('menu.create');
             Route::get('/menu/{menuItem}/edit', [MerchantMenuPageController::class, 'edit'])->name('menu.edit');
             Route::post('/menu', [MerchantMenuItemController::class, 'store'])->name('menu.store');
             Route::patch('/menu/{menuItem}', [MerchantMenuItemController::class, 'update'])->name('menu.update');
+            Route::patch('/menu/{menuItem}/availability', [MerchantMenuItemController::class, 'toggleAvailability'])->name('menu.availability');
             Route::delete('/menu/{menuItem}', [MerchantMenuItemController::class, 'destroy'])->name('menu.destroy');
+
+            Route::get('/staff', [MerchantStaffPageController::class, 'index'])->name('staff.index');
+            Route::post('/staff', [MerchantStaffController::class, 'store'])->name('staff.store');
+            Route::put('/staff/{staff}', [MerchantStaffController::class, 'update'])->name('staff.update');
+            Route::delete('/staff/{staff}', [MerchantStaffController::class, 'destroy'])->name('staff.destroy');
+            Route::get('/staff/activity', [MerchantActivityLogPageController::class, 'index'])->name('staff.activity');
 
             Route::get('/orders', [OrderOperationsPageController::class, 'merchantQueue'])->name('orders.index');
             Route::patch('/orders/{order}', [OrderOperationsPageController::class, 'merchantUpdate'])->name('orders.update');
@@ -73,6 +89,10 @@ Route::middleware(['auth', 'active-user', 'verified'])->group(function () {
             Route::post('/orders/{order}/dispatch', [OrderOperationsPageController::class, 'merchantDispatch'])->name('orders.dispatch');
             Route::post('/orders/{order}/complete-pickup', [OrderOperationsPageController::class, 'merchantCompletePickup'])->name('orders.complete-pickup');
             Route::patch('/restaurants/{restaurant}/order-settings', [MerchantOrderSettingsController::class, 'update'])->name('restaurants.order-settings.update');
+
+            Route::get('/cashier', CashierDashboardController::class)->name('cashier.dashboard');
+            Route::get('/cashier/pos', CashierPosPageController::class)->name('cashier.pos');
+            Route::post('/cashier/orders', [CashierOrderController::class, 'store'])->name('cashier.orders.store');
         });
     });
 

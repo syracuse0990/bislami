@@ -14,7 +14,12 @@ class EnsureMerchantIsApproved
     {
         $user = $request->user();
 
+        // Not a merchant, already verified owner, or an active staff member → allow through.
         if (! $user || $user->role !== 'merchant' || $user->isMerchantVerified()) {
+            return $next($request);
+        }
+
+        if ($user->staffAssignments()->where('status', 'active')->exists()) {
             return $next($request);
         }
 
