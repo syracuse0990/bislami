@@ -15,14 +15,16 @@ class MerchantMaintenanceController extends Controller
     {
         $restaurant = $this->resolveRestaurant($request);
 
-        abort_if($restaurant === null, 403, 'No restaurant found.');
-
-        $settings = $restaurant->order_settings ?? [];
+        $settings = $restaurant?->order_settings ?? [];
         $floorPlan = $settings['floor_plan'] ?? [];
 
         return Inertia::render('Merchant/Maintenance/Index', [
-            'restaurant' => ['id' => $restaurant->id, 'name' => $restaurant->name],
-            'isOwner' => $restaurant->user_id === $request->user()->id,
+            'hasRestaurant' => $restaurant !== null,
+            'restaurant' => [
+                'id' => $restaurant?->id,
+                'name' => $restaurant?->name ?? ($request->user()->store_name ?? 'your restaurant'),
+            ],
+            'isOwner' => $restaurant?->user_id === $request->user()->id,
             'discountSettings' => [
                 'scDiscountRate'  => (int) ($settings['sc_discount_rate'] ?? 20),
                 'pwdDiscountRate' => (int) ($settings['pwd_discount_rate'] ?? 20),

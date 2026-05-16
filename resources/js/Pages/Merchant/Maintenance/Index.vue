@@ -1,6 +1,6 @@
 <script setup>
 import MerchantLayout from '@/Layouts/MerchantLayout.vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { computed, onUnmounted, reactive, ref } from 'vue';
 
 const CANVAS_W = 880;
@@ -50,6 +50,7 @@ const CHAIR_R = 6.5;
 const CHAIR_GAP = 5;
 
 const props = defineProps({
+    hasRestaurant:    { type: Boolean, default: true },
     restaurant:       { type: Object, required: true },
     isOwner:          { type: Boolean, default: false },
     discountSettings: { type: Object, default: () => ({ scDiscountRate: 20, pwdDiscountRate: 20 }) },
@@ -937,12 +938,43 @@ function saveFloorPlan() {
                     Maintenance
                 </h2>
                 <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                    Manage system-wide settings for <strong class="font-semibold text-slate-800">{{ restaurant.name }}</strong> — discounts, POS behaviour, and more.
+                    <template v-if="hasRestaurant">
+                        Manage system-wide settings for <strong class="font-semibold text-slate-800">{{ restaurant.name }}</strong> — discounts, POS behaviour, and more.
+                    </template>
+                    <template v-else>
+                        Save your restaurant profile first, then come back here to manage discounts, POS behaviour, and the floor plan.
+                    </template>
                 </p>
             </div>
         </template>
 
         <div class="px-4 py-8 sm:px-6 lg:px-0">
+            <div v-if="!hasRestaurant" class="max-w-3xl rounded-3xl border border-[#e8e3da] bg-white p-6 shadow-sm sm:p-8">
+                <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f0ece6] text-[#0b4d59]">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21h7.5m-7.5 0V7.5A2.25 2.25 0 0110.5 5.25h3A2.25 2.25 0 0115.75 7.5V21m-7.5 0H5.625A1.875 1.875 0 013.75 19.125V10.5a1.5 1.5 0 011.5-1.5H7.5m9 12h2.625A1.875 1.875 0 0021 19.125V10.5a1.5 1.5 0 00-1.5-1.5H16.5m-9-3.75h9" />
+                    </svg>
+                </div>
+
+                <h3 class="mt-5 text-xl font-semibold text-slate-900">Restaurant profile required</h3>
+                <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                    This page needs a linked restaurant record. Your local seeded accounts already have one, but the merchant account on the server does not have a row in the restaurants table yet.
+                </p>
+                <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                    Open the restaurant profile, save it once, and this maintenance page will start working normally.
+                </p>
+
+                <div class="mt-6 flex flex-wrap items-center gap-3">
+                    <Link
+                        :href="route('merchant.profile.show')"
+                        class="inline-flex items-center justify-center rounded-xl bg-[#0b4d59] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#093e49]"
+                    >
+                        Open Restaurant Profile
+                    </Link>
+                </div>
+            </div>
+
+            <template v-else>
             <div v-if="!isOwner" class="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
                 <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -1602,6 +1634,7 @@ function saveFloorPlan() {
                     </section>
                 </div>
             </div>
+            </template>
         </div>
 
         <Teleport to="body">
