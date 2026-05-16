@@ -14,6 +14,7 @@ use App\Http\Controllers\Merchant\CashierOrderController;
 use App\Http\Controllers\Merchant\CashierDashboardController;
 use App\Http\Controllers\Merchant\CashierPosPageController;
 use App\Http\Controllers\Merchant\MerchantWorkspacePageController;
+use App\Http\Controllers\Merchant\MerchantMaintenanceController;
 use App\Http\Controllers\Merchant\MerchantOrderSettingsController;
 use App\Http\Controllers\Merchant\MerchantStoreController;
 use App\Http\Controllers\Merchant\MerchantStorePageController;
@@ -93,6 +94,10 @@ Route::middleware(['auth', 'active-user', 'verified'])->group(function () {
             Route::get('/cashier', CashierDashboardController::class)->name('cashier.dashboard');
             Route::get('/cashier/pos', CashierPosPageController::class)->name('cashier.pos');
             Route::post('/cashier/orders', [CashierOrderController::class, 'store'])->name('cashier.orders.store');
+
+            Route::get('/maintenance', [MerchantMaintenanceController::class, 'index'])->name('maintenance.index');
+            Route::put('/maintenance', [MerchantMaintenanceController::class, 'update'])->name('maintenance.update');
+            Route::put('/maintenance/floor-plan', [MerchantMaintenanceController::class, 'updateFloorPlan'])->name('maintenance.floor-plan');
         });
     });
 

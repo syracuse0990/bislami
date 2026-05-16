@@ -173,7 +173,10 @@ class Restaurant extends Model
             return $this->logo_path;
         }
 
-        return \Illuminate\Support\Facades\Storage::disk('wasabi')->url($this->logo_path);
+        return \Illuminate\Support\Facades\Storage::disk('wasabi')->temporaryUrl(
+            $this->logo_path,
+            now()->addHour(),
+        );
     }
 
     public function mapsUrl(): ?string

@@ -1,6 +1,7 @@
 <script setup>
 import ApplicationLogo from '@/Components/Branding/ApplicationLogo.vue';
 import ConfirmDialog from '@/Components/UI/ConfirmDialog.vue';
+import { useConfirm } from '@/Composables/useConfirm';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
@@ -36,9 +37,17 @@ const closeUserMenu = (e) => {
 onMounted(() => document.addEventListener('click', closeUserMenu));
 onUnmounted(() => document.removeEventListener('click', closeUserMenu));
 
-const logout = () => {
+const { confirm } = useConfirm();
+const logout = async () => {
     userMenuOpen.value = false;
-    router.post(route('logout'));
+    const ok = await confirm({
+        title: 'Sign Out',
+        message: 'Are you sure you want to sign out of the POS terminal?',
+        confirmLabel: 'Sign Out',
+        cancelLabel: 'Stay',
+        intent: 'danger',
+    });
+    if (ok) router.post(route('logout'));
 };
 
 // Change password modal

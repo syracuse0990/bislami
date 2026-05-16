@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'subtotal',
     'delivery_fee',
     'service_fee',
+    'discount_type',
+    'discount_amount',
     'total',
     'payment_method',
     'idempotency_key',

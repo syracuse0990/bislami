@@ -9,6 +9,7 @@ const props = defineProps({
     menuItems: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
     lastPlacedOrder: { type: Object, default: null },
+    discountRates: { type: Object, default: () => ({ sc: 20, pwd: 20 }) },
 });
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -47,7 +48,38 @@ const cartItems = computed(() =>
 );
 
 const subtotal = computed(() => cartItems.value.reduce((s, i) => s + i.lineTotal, 0));
-const total = computed(() => subtotal.value);
+
+// ─── SC / PWD discount ─────────────────────────────────────────────────────────────────────
+const discountType = ref(null);       // null | 'sc' | 'pwd'
+const discountIdInput = ref('');
+const discountApplied = ref(false);
+const discountIdApplied = ref('');
+const showDiscountPanel = ref(false);
+
+const discountPct = computed(() =>
+    discountApplied.value && discountType.value
+        ? (props.discountRates[discountType.value] ?? 20)
+        : 0,
+);
+const discountAmount = computed(() =>
+    discountApplied.value ? Math.round(subtotal.value * (discountPct.value / 100)) : 0,
+);
+const total = computed(() => subtotal.value - discountAmount.value);
+
+function applyDiscount() {
+    if (!discountType.value || !discountIdInput.value.trim()) return;
+    discountApplied.value = true;
+    discountIdApplied.value = discountIdInput.value.trim();
+    showDiscountPanel.value = false;
+}
+
+function removeDiscount() {
+    discountApplied.value = false;
+    discountType.value = null;
+    discountIdInput.value = '';
+    discountIdApplied.value = '';
+    showDiscountPanel.value = false;
+}
 
 function addItem(item) {
     const id = String(item.id);
@@ -69,6 +101,7 @@ function removeItem(id) {
 
 function clearCart() {
     Object.keys(cart).forEach((k) => delete cart[k]);
+    removeDiscount();
 }
 
 // ─── order form ──────────────────────────────────────────────────────────────
@@ -106,6 +139,10 @@ function placeOrder() {
     const snapshot = {
         items: cartItems.value.map((i) => ({ ...i })),
         subtotal: subtotal.value,
+        discountType: discountType.value,
+        discountPct: discountPct.value,
+        discountAmount: discountAmount.value,
+        discountId: discountIdApplied.value,
         total: total.value,
         orderType: orderType.value,
         customerName: customerName.value,
@@ -126,6 +163,8 @@ function placeOrder() {
             table_number: tableNumber.value || null,
             payment_method: paymentMethod.value,
             notes: orderNotes.value || null,
+            discount_type: discountType.value || null,
+            discount_id: discountIdApplied.value || null,
             items: cartItems.value.map((i) => ({
                 menu_item_id: i.id,
                 quantity: i.quantity,
@@ -486,11 +525,87 @@ function startNewOrder() {
 
                 <!-- Totals + Payment + Place Order -->
                 <div class="shrink-0 border-t border-[#e8e3da] bg-white px-5 pb-5 pt-4">
+
+                    <!-- SC / PWD Discount -->
+                    <div class="mb-3">
+                        <!-- Applied badge -->
+                        <div
+                            v-if="discountApplied"
+                            class="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 ring-1 ring-inset ring-emerald-200"
+                        >
+                            <div class="flex items-center gap-2">
+                                <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                    {{ discountType === 'sc' ? 'Senior Citizen' : 'PWD' }}
+                                </span>
+                                <span class="text-xs text-emerald-700">ID: {{ discountIdApplied }}</span>
+                                <span class="text-xs font-semibold text-emerald-600">&middot; {{ discountPct }}% off</span>
+                            </div>
+                            <button @click="removeDiscount" class="ml-2 text-emerald-400 transition hover:text-red-500">
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Toggle button (panel closed) -->
+                        <button
+                            v-else-if="!showDiscountPanel"
+                            @click="showDiscountPanel = true; if (!discountType) discountType = 'sc'"
+                            class="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#c5bdb5] py-2 text-xs font-semibold text-slate-500 transition hover:border-[#0b4d59] hover:text-[#0b4d59]"
+                        >
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Apply SC / PWD Discount
+                        </button>
+
+                        <!-- Input panel -->
+                        <div v-else class="overflow-hidden rounded-xl border border-[#e4ddd4] bg-[#faf7f3] p-3">
+                            <p class="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Discount Type</p>
+                            <div class="mb-3 flex gap-2">
+                                <button
+                                    @click="discountType = 'sc'"
+                                    :class="['flex-1 rounded-lg py-1.5 text-xs font-semibold transition', discountType === 'sc' ? 'bg-[#0b4d59] text-white' : 'border border-[#e4ddd4] bg-white text-slate-600 hover:bg-[#f0ece6]']"
+                                >Senior Citizen</button>
+                                <button
+                                    @click="discountType = 'pwd'"
+                                    :class="['flex-1 rounded-lg py-1.5 text-xs font-semibold transition', discountType === 'pwd' ? 'bg-[#0b4d59] text-white' : 'border border-[#e4ddd4] bg-white text-slate-600 hover:bg-[#f0ece6]']"
+                                >PWD</button>
+                            </div>
+                            <p class="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                                {{ discountType === 'sc' ? 'Senior Citizen' : 'PWD' }} ID Number
+                            </p>
+                            <div class="flex gap-2">
+                                <input
+                                    v-model="discountIdInput"
+                                    type="text"
+                                    :placeholder="discountType === 'sc' ? 'e.g. SC-0012345' : 'e.g. PWD-0012345'"
+                                    maxlength="50"
+                                    @keydown.enter="applyDiscount"
+                                    class="min-w-0 flex-1 rounded-xl border border-[#e4ddd4] bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-[#0b4d59] focus:ring-2 focus:ring-[#0b4d59]/15"
+                                />
+                                <button
+                                    @click="applyDiscount"
+                                    :disabled="!discountIdInput.trim()"
+                                    class="shrink-0 rounded-xl bg-[#0b4d59] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#093e48] disabled:cursor-not-allowed disabled:opacity-40"
+                                >Apply</button>
+                                <button
+                                    @click="showDiscountPanel = false; discountIdInput = ''"
+                                    class="shrink-0 rounded-xl border border-[#e4ddd4] bg-white px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-[#f0ece6]"
+                                >Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Totals -->
                     <div class="mb-4 space-y-1.5 text-sm">
                         <div class="flex items-center justify-between text-slate-500">
                             <span>Subtotal</span>
                             <span>{{ fmt(subtotal) }}</span>
+                        </div>
+                        <div v-if="discountApplied" class="flex items-center justify-between text-emerald-600">
+                            <span>{{ discountType === 'sc' ? 'SC' : 'PWD' }} Discount ({{ discountPct }}%)</span>
+                            <span>&minus;{{ fmt(discountAmount) }}</span>
                         </div>
                         <div class="flex items-center justify-between border-t border-[#f0ece6] pt-2 text-[15px] font-bold text-[#0b4d59]">
                             <span>TOTAL</span>
@@ -656,6 +771,14 @@ function startNewOrder() {
 
                             <!-- Totals + payment -->
                             <div class="border-t border-[#f0ece6] px-6 py-4">
+                                <div v-if="receiptData.discountAmount > 0" class="mb-1 flex items-center justify-between text-sm text-slate-500">
+                                    <span>Subtotal</span>
+                                    <span>{{ fmt(receiptData.subtotal) }}</span>
+                                </div>
+                                <div v-if="receiptData.discountAmount > 0" class="mb-2 flex items-center justify-between text-sm text-emerald-600">
+                                    <span>{{ receiptData.discountType === 'sc' ? 'SC' : 'PWD' }} Discount ({{ receiptData.discountPct ?? 20 }}%) &middot; ID: {{ receiptData.discountId }}</span>
+                                    <span>&minus;{{ fmt(receiptData.discountAmount) }}</span>
+                                </div>
                                 <div class="mb-2 flex items-center justify-between text-base font-bold text-[#0b4d59]">
                                     <span>Total</span>
                                     <span>{{ fmt(receiptData.total) }}</span>

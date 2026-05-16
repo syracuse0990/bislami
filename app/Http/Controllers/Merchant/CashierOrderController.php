@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Restaurant;
 use App\Support\OrderLifecycle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +29,8 @@ class CashierOrderController extends Controller
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
             'items.*.unit_price' => ['required', 'integer', 'min:0'],
             'notes' => ['nullable', 'string', 'max:500'],
+            'discount_type' => ['nullable', 'in:sc,pwd'],
+            'discount_id' => ['nullable', 'string', 'max:50'],
         ]);
 
         $user = $request->user();
@@ -50,6 +53,17 @@ class CashierOrderController extends Controller
             $subtotal = (int) collect($validated['items'])
                 ->sum(fn (array $item) => $item['unit_price'] * $item['quantity']);
 
+            $discountType = $validated['discount_type'] ?? null;
+            if ($discountType) {
+                $restaurant = Restaurant::find($validated['restaurant_id']);
+                $rateKey = $discountType === 'sc' ? 'sc_discount_rate' : 'pwd_discount_rate';
+                $discountRatePct = (int) (($restaurant?->order_settings[$rateKey] ?? 20));
+                $discountAmount = (int) round($subtotal * ($discountRatePct / 100));
+            } else {
+                $discountAmount = 0;
+            }
+            $total = $subtotal - $discountAmount;
+
             $notesParts = [];
             if (! empty($validated['customer_name'])) {
                 $notesParts[] = 'Customer: '.$validated['customer_name'];
@@ -60,6 +74,9 @@ class CashierOrderController extends Controller
             if (! empty($validated['notes'])) {
                 $notesParts[] = $validated['notes'];
             }
+            if ($discountType && ! empty($validated['discount_id'])) {
+                $notesParts[] = strtoupper($discountType).' ID: '.$validated['discount_id'];
+            }
 
             $order = Order::create([
                 'user_id' => $user->id,
@@ -69,7 +86,9 @@ class CashierOrderController extends Controller
                 'subtotal' => $subtotal,
                 'delivery_fee' => 0,
                 'service_fee' => 0,
-                'total' => $subtotal,
+                'discount_type' => $discountType,
+                'discount_amount' => $discountAmount,
+                'total' => $total,
                 'payment_method' => $validated['payment_method'],
                 'idempotency_key' => (string) Str::uuid(),
                 'customer_notes' => $notesParts ? implode(' | ', $notesParts) : null,

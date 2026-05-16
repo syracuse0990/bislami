@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Merchant;
 
 use App\Http\Controllers\Controller;
 use App\Models\MenuItem;
+use App\Models\Restaurant;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -64,12 +65,19 @@ class CashierPosPageController extends Controller
             ->sort()
             ->values();
 
+        $restaurantModel = Restaurant::find($currentRestaurant['id']);
+        $orderSettings = $restaurantModel?->order_settings ?? [];
+
         return Inertia::render('Merchant/Cashier/Pos', [
             'restaurant' => $currentRestaurant,
             'restaurants' => $restaurants,
             'menuItems' => $menuItems,
             'categories' => $categories,
             'lastPlacedOrder' => session()->pull('pos_order_success'),
+            'discountRates' => [
+                'sc'  => (int) ($orderSettings['sc_discount_rate'] ?? 20),
+                'pwd' => (int) ($orderSettings['pwd_discount_rate'] ?? 20),
+            ],
         ]);
     }
 }

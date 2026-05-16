@@ -43,6 +43,13 @@ class HandleInertiaRequests extends Middleware
                 'homeRoute' => $request->user()
                     ? route($request->user()->homeRouteName(), absolute: false)
                     : null,
+                'restaurantLogoUrl' => fn () => $request->user()
+                    ? $request->user()
+                        ->managedRestaurants()
+                        ->select(['id', 'logo_path'])
+                        ->first()
+                        ?->logoUrl()
+                    : null,
             ],
             'services' => [
                 'googleMaps' => [

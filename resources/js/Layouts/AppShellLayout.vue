@@ -47,10 +47,15 @@ const navIcons = {
     orders: ['M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z'],
     staff: ['M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2', 'M9 7a4 4 0 100 8 4 4 0 000-8z', 'M23 21v-2a4 4 0 00-3-3.87', 'M16 3.13a4 4 0 010 7.75'],
     cashier: ['M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z'],
+    maintenance: [
+        'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
+        'M15 12a3 3 0 11-6 0 3 3 0 016 0z',
+    ],
 };
 
 const page = usePage();
 const currentUser = computed(() => page.props.auth.user ?? {});
+const restaurantLogoUrl = computed(() => page.props.auth?.restaurantLogoUrl ?? null);
 const userInitials = computed(() => {
     const name = String(currentUser.value?.name ?? '').trim();
 
@@ -367,11 +372,11 @@ const userInitials = computed(() => {
                                         <slot name="header" />
                                     </div>
 
-                                    <div class="hidden h-20 w-20 shrink-0 items-center justify-center rounded-[28px] bg-[linear-gradient(145deg,#fffaf4,#ffffff)] p-3 shadow-[0_24px_60px_-40px_rgba(11,77,89,0.55)] ring-1 ring-[#f4dfce] sm:flex">
+                                    <div class="hidden h-20 w-20 shrink-0 overflow-hidden rounded-[28px] bg-[linear-gradient(145deg,#fffaf4,#ffffff)] shadow-[0_24px_60px_-40px_rgba(11,77,89,0.55)] ring-1 ring-[#f4dfce] sm:flex">
                                         <img
-                                            src="/images/bizlami_icon.png"
-                                            alt="BizLami icon"
-                                            class="h-full w-full object-contain"
+                                            :src="restaurantLogoUrl ?? '/images/bizlami_icon.png'"
+                                            :alt="restaurantLogoUrl ? 'Restaurant logo' : 'BizLami icon'"
+                                            class="h-full w-full object-cover"
                                         >
                                     </div>
                                 </div>

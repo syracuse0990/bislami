@@ -22,7 +22,12 @@ const navigation = [
         ],
     },
     { name: 'merchant.orders.index', label: 'Orders', activePattern: 'merchant.orders.*', icon: 'orders' },
-    { name: 'merchant.cashier.dashboard', label: 'POS Cashier', activePattern: 'merchant.cashier.*', icon: 'cashier' },
+    {
+        name: 'merchant.maintenance.index',
+        label: 'Maintenance',
+        activePattern: 'merchant.maintenance.*',
+        icon: 'maintenance',
+    },
     {
         name: 'merchant.staff.index',
         label: 'Staff',
