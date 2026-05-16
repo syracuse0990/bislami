@@ -33,11 +33,22 @@ function showToast(level, title, description, duration) {
 }
 
 watch(
-    () => flash.value,
-    (current) => {
-        showToast('success', 'Success', current?.success, 4200);
-        showToast('warning', 'Warning', current?.warning, 5200);
-        showToast('error', 'Error', current?.error, 6200);
+    () => [flash.value?.success, flash.value?.warning, flash.value?.error],
+    (current, previous = []) => {
+        const [success, warning, error] = current;
+        const [previousSuccess, previousWarning, previousError] = previous;
+
+        if (success && success !== previousSuccess) {
+            showToast('success', 'Success', success, 4200);
+        }
+
+        if (warning && warning !== previousWarning) {
+            showToast('warning', 'Warning', warning, 5200);
+        }
+
+        if (error && error !== previousError) {
+            showToast('error', 'Error', error, 6200);
+        }
     },
     { immediate: true },
 );

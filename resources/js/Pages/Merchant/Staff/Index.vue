@@ -5,6 +5,7 @@ import SelectField from '@/Components/Forms/Fields/SelectField.vue';
 import TextField from '@/Components/Forms/Fields/TextField.vue';
 import { useConfirm } from '@/Composables/useConfirm';
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { sileo } from '@llayz46/sileo-vue';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -39,8 +40,22 @@ watch(
 
 function openInvite() {
     inviteForm.reset();
+    inviteForm.clearErrors();
     inviteForm.restaurant_id = props.restaurantGroups[0]?.id ?? null;
     inviteOpen.value = true;
+}
+
+function showInviteErrorToast(errors) {
+    const errorMessages = Object.values(errors).filter(Boolean);
+    const description = errorMessages.length === 1
+        ? String(errorMessages[0])
+        : `${errorMessages.length} fields need attention before the team member can be added.`;
+
+    sileo.warning({
+        title: 'Could not add team member',
+        description,
+        duration: 5200,
+    });
 }
 
 function submitInvite() {
@@ -49,6 +64,10 @@ function submitInvite() {
         onSuccess: () => {
             inviteOpen.value = false;
             inviteForm.reset();
+            inviteForm.clearErrors();
+        },
+        onError: (errors) => {
+            showInviteErrorToast(errors);
         },
     });
 }
