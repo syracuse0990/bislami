@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class MerchantStoreController extends Controller
 {
@@ -53,9 +54,7 @@ class MerchantStoreController extends Controller
             'name' => trim($validated['name']),
             'featured_text' => trim($validated['featured_text']),
             'contact_phone' => trim($validated['contact_phone']),
-            'logo_path' => $logo
-                ? $logo->storePublicly('stores', 'wasabi')
-                : $currentProfile?->logo_path,
+            'logo_path' => $this->storeLogo($logo, $currentProfile?->logo_path),
             'location_address' => trim($validated['location_address']),
             'location_latitude' => $validated['location_latitude'] ?? null,
             'location_longitude' => $validated['location_longitude'] ?? null,
@@ -96,6 +95,23 @@ class MerchantStoreController extends Controller
             'rating' => (float) ($currentProfile?->rating ?? 0),
             'is_visible' => $currentProfile?->is_visible ?? true,
         ];
+    }
+
+    private function storeLogo(?UploadedFile $logo, ?string $currentPath = null): ?string
+    {
+        if (! $logo) {
+            return $currentPath;
+        }
+
+        $storedPath = $logo->store('stores', 'wasabi');
+
+        if (! is_string($storedPath) || $storedPath === '') {
+            report(new RuntimeException('Merchant restaurant logo upload failed on the wasabi disk.'));
+
+            return $currentPath;
+        }
+
+        return $storedPath;
     }
 
     private function uniqueSlug(string $name, ?int $ignoreId = null): string

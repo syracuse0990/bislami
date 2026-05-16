@@ -1,4 +1,5 @@
 ﻿<script setup>
+import MerchantRestaurantLogoCard from '@/Components/Branding/MerchantRestaurantLogoCard.vue';
 import MerchantLayout from '@/Layouts/MerchantLayout.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { computed, reactive } from 'vue';
@@ -135,6 +136,10 @@ function save() {
 
         <div class="py-8">
             <div class="space-y-5 px-4 sm:px-6 lg:px-0">
+                <MerchantRestaurantLogoCard
+                    class="max-w-3xl"
+                    note="Keep your restaurant branding visible while you manage today's item limits and availability."
+                />
 
                 <!-- Action bar -->
                 <div class="flex flex-wrap items-center justify-between gap-3">

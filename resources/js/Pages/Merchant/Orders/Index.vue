@@ -1,4 +1,5 @@
 <script setup>
+import MerchantRestaurantLogoCard from '@/Components/Branding/MerchantRestaurantLogoCard.vue';
 import CheckboxField from '@/Components/Forms/Fields/CheckboxField.vue';
 import SelectField from '@/Components/Forms/Fields/SelectField.vue';
 import TextField from '@/Components/Forms/Fields/TextField.vue';
@@ -458,6 +459,13 @@ function disconnectRealtime() {
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--brand-teal)]">Bulk order filters</p>
+
+                        <div class="px-4 py-8 sm:px-6 lg:px-0">
+                            <MerchantRestaurantLogoCard
+                                class="max-w-3xl"
+                                note="Use the current restaurant logo as a quick visual anchor while you triage live merchant orders."
+                            />
+                        </div>
                                 <h3 class="mt-2 text-2xl font-semibold text-slate-900">Trim the queue by stage, restaurant, or fulfillment mode.</h3>
                             </div>
 

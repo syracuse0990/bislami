@@ -204,19 +204,28 @@ watch(
     },
 );
 
-onBeforeUnmount(() => {
+function clearLogoSelection() {
     if (logoPreviewUrl.value) {
         URL.revokeObjectURL(logoPreviewUrl.value);
     }
+
+    logoPreviewUrl.value = null;
+    form.logo = null;
+}
+
+onBeforeUnmount(() => {
+    clearLogoSelection();
 });
 
 function setLogo(file) {
-    if (logoPreviewUrl.value) {
-        URL.revokeObjectURL(logoPreviewUrl.value);
+    clearLogoSelection();
+
+    if (!file) {
+        return;
     }
 
     form.logo = file;
-    logoPreviewUrl.value = file ? URL.createObjectURL(file) : null;
+    logoPreviewUrl.value = URL.createObjectURL(file);
     clearFieldError('logo', Boolean(file));
 }
 
@@ -254,6 +263,7 @@ function submit() {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
+            clearLogoSelection();
             form.clearErrors();
         },
         onError: (errors) => {

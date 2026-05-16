@@ -1,4 +1,5 @@
 <script setup>
+import MerchantRestaurantLogoCard from '@/Components/Branding/MerchantRestaurantLogoCard.vue';
 import MerchantLayout from '@/Layouts/MerchantLayout.vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { computed, onUnmounted, reactive, ref } from 'vue';
@@ -975,6 +976,11 @@ function saveFloorPlan() {
             </div>
 
             <template v-else>
+            <MerchantRestaurantLogoCard
+                class="mb-6 max-w-3xl"
+                :restaurant-name="restaurant.name"
+                note="Use this restaurant logo as the shared visual marker while you manage discounts and the floor plan."
+            />
             <div v-if="!isOwner" class="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
                 <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />

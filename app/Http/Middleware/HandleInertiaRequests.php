@@ -31,6 +31,8 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $restaurantBrand = $this->restaurantBrand($request);
+
         return [
             ...parent::share($request),
             'auth' => [
@@ -43,13 +45,8 @@ class HandleInertiaRequests extends Middleware
                 'homeRoute' => $request->user()
                     ? route($request->user()->homeRouteName(), absolute: false)
                     : null,
-                'restaurantLogoUrl' => fn () => $request->user()
-                    ? $request->user()
-                        ->managedRestaurants()
-                        ->select(['id', 'logo_path'])
-                        ->first()
-                        ?->logoUrl()
-                    : null,
+                'restaurantBrand' => $restaurantBrand,
+                'restaurantLogoUrl' => $restaurantBrand['logoUrl'] ?? null,
             ],
             'services' => [
                 'googleMaps' => [
@@ -89,6 +86,41 @@ class HandleInertiaRequests extends Middleware
                 'warning' => fn () => $request->session()->get('warning'),
                 'error' => fn () => $request->session()->get('error'),
             ],
+        ];
+    }
+
+    /**
+     * @return array{id: int, name: string, logoUrl: string|null}|null
+     */
+    private function restaurantBrand(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return null;
+        }
+
+        $restaurant = $user->restaurantProfile()
+            ->select(['id', 'name', 'logo_path'])
+            ->first();
+
+        if (! $restaurant) {
+            $assignment = $user->staffAssignments()
+                ->with('restaurant:id,name,logo_path')
+                ->where('status', 'active')
+                ->first();
+
+            $restaurant = $assignment?->restaurant;
+        }
+
+        if (! $restaurant) {
+            return null;
+        }
+
+        return [
+            'id' => $restaurant->id,
+            'name' => $restaurant->name,
+            'logoUrl' => $restaurant->logoUrl(),
         ];
     }
 }
