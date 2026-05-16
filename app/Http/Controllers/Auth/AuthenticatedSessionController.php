@@ -43,6 +43,13 @@ class AuthenticatedSessionController extends Controller
                 ->onlyInput('email');
         }
 
+        if (
+            $request->user()?->staffAssignments()->where('status', 'active')->exists()
+            && ! in_array($request->user()->role, ['merchant', 'admin', 'courier'], true)
+        ) {
+            $request->user()->update(['role' => 'merchant']);
+        }
+
         $request->session()->regenerate();
 
         return redirect()->intended(route($request->user()->homeRouteName(), absolute: false));

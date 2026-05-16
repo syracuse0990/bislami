@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Restaurant;
+use App\Models\RestaurantStaff;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -97,5 +99,54 @@ class AuthenticationTest extends TestCase
 
         $this->assertAuthenticated();
         $response->assertRedirect(route('merchant.dashboard', absolute: false));
+    }
+
+    public function test_cashier_staff_are_promoted_and_redirected_to_cashier_dashboard_after_login(): void
+    {
+        $merchantOwner = User::factory()->merchant()->create();
+
+        $restaurant = Restaurant::create([
+            'user_id' => $merchantOwner->id,
+            'name' => 'Lami Ka',
+            'slug' => 'lami-ka',
+            'category' => 'Restaurant',
+            'cuisine' => 'Rice Bowls, Grill',
+            'min_delivery_time' => 20,
+            'max_delivery_time' => 30,
+            'rating' => 4.8,
+            'delivery_fee' => 0,
+            'featured_text' => 'Cashier login redirect test restaurant.',
+            'minimum_order_value' => 0,
+            'preparation_time_min' => 15,
+            'preparation_time_max' => 30,
+            'operating_hours' => Restaurant::defaultOperatingHours(),
+            'closure_dates' => [],
+        ]);
+
+        $cashier = User::factory()->customer()->create([
+            'email' => 'cashier@example.com',
+        ]);
+
+        RestaurantStaff::create([
+            'restaurant_id' => $restaurant->id,
+            'user_id' => $cashier->id,
+            'invited_email' => $cashier->email,
+            'invited_name' => 'Counter Cashier',
+            'role' => 'cashier',
+            'permissions' => RestaurantStaff::DEFAULT_PERMISSIONS['cashier'],
+            'status' => 'active',
+            'invited_by' => $merchantOwner->id,
+            'invited_at' => now(),
+            'accepted_at' => now(),
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => $cashier->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticated();
+        $this->assertSame('merchant', $cashier->fresh()->role);
+        $response->assertRedirect(route('merchant.cashier.dashboard', absolute: false));
     }
 }

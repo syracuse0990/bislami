@@ -32,9 +32,12 @@ class MerchantStaffController extends Controller
             $user = User::create([
                 'name' => $validated['invited_name'] ?? explode('@', $validated['invited_email'])[0],
                 'email' => $validated['invited_email'],
+                'role' => 'merchant',
                 'password' => Hash::make($temporaryPassword),
                 'email_verified_at' => now(),
             ]);
+        } elseif (! in_array($user->role, ['merchant', 'admin', 'courier'], true)) {
+            $user->update(['role' => 'merchant']);
         }
 
         RestaurantStaff::create([
