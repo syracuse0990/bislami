@@ -3,16 +3,19 @@
 namespace Database\Seeders;
 
 use App\Models\MenuItem;
+use App\Models\Restaurant;
+use App\Models\User;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 use Illuminate\Support\Str;
 
 class LamiKaMenuSeeder extends Seeder
 {
-    private const RESTAURANT_ID = 5;
-    private const RESTAURANT_SLUG = 'lami-ka';
+    private string $restaurantSlug = 'lami-ka';
 
     public function run(): void
     {
+        $restaurant = $this->resolveRestaurant();
         $items = $this->menuItems();
 
         foreach ($items as $item) {
@@ -21,7 +24,7 @@ class LamiKaMenuSeeder extends Seeder
             MenuItem::firstOrCreate(
                 ['slug' => $slug],
                 [
-                    'restaurant_id' => self::RESTAURANT_ID,
+                    'restaurant_id' => $restaurant->id,
                     'name' => $item['name'],
                     'slug' => $slug,
                     'category' => $item['category'],
@@ -37,13 +40,65 @@ class LamiKaMenuSeeder extends Seeder
         }
     }
 
+    private function resolveRestaurant(): Restaurant
+    {
+        $merchantEmail = (string) config('seeding.lamika.merchant_email', 'merchant@example.com');
+        $restaurantName = (string) config('seeding.lamika.restaurant_name', 'Lami Ka');
+        $defaultSlug = (string) config('seeding.lamika.restaurant_slug', 'lami-ka');
+
+        $merchant = User::query()->where('email', $merchantEmail)->first();
+
+        if (! $merchant) {
+            throw new RuntimeException("LamiKaMenuSeeder could not find merchant [{$merchantEmail}]. Set LAMIKA_SEED_EMAIL to an existing merchant account before running the seeder.");
+        }
+
+        $restaurant = $merchant->managedRestaurants()->first();
+
+        if (! $restaurant) {
+            $restaurant = $merchant->managedRestaurants()->create([
+                'name' => $restaurantName,
+                'slug' => $this->uniqueRestaurantSlug($defaultSlug),
+                'category' => 'Restaurant',
+                'cuisine' => 'Rice Bowls, Grill, Burgers, Pasta',
+                'min_delivery_time' => 20,
+                'max_delivery_time' => 35,
+                'rating' => 4.8,
+                'delivery_fee' => 0,
+                'featured_text' => 'Signature Lami Ka menu seeded for merchant setup.',
+                'minimum_order_value' => 0,
+                'preparation_time_min' => 15,
+                'preparation_time_max' => 30,
+                'operating_hours' => Restaurant::defaultOperatingHours(),
+                'closure_dates' => [],
+            ]);
+        }
+
+        $this->restaurantSlug = $restaurant->slug ?: $defaultSlug;
+
+        return $restaurant;
+    }
+
     private function uniqueSlug(string $name): string
     {
-        $base = Str::slug(self::RESTAURANT_SLUG.' '.$name);
+        $base = Str::slug($this->restaurantSlug.' '.$name);
         $slug = $base;
         $counter = 2;
 
         while (MenuItem::where('slug', $slug)->exists()) {
+            $slug = $base.'-'.$counter;
+            $counter++;
+        }
+
+        return $slug;
+    }
+
+    private function uniqueRestaurantSlug(string $preferredSlug): string
+    {
+        $base = Str::slug($preferredSlug);
+        $slug = $base;
+        $counter = 2;
+
+        while (Restaurant::query()->where('slug', $slug)->exists()) {
             $slug = $base.'-'.$counter;
             $counter++;
         }
